@@ -43,25 +43,29 @@
     trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
     code: '<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>',
     ext: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>',
+    bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+    board: '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/>',
+    grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
     chev: '<path d="M9 18l6-6-6-6"/>', chevL: '<path d="M15 18l-9-6 9-6"/>'
   };
   function ic(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + "</svg>"; }
 
   /* ---------------- State ---------------- */
-  var S, ui = { view: "overview", filter: "all", selected: null, query: "", taskTab: "open", weekOffset: 0, analyzeResult: null, analyzeInput: null };
+  var S, ui = { useLive: true, editing: null, taskView: "list", notifOpen: false, view: "overview", filter: "all", selected: null, query: "", taskTab: "open", weekOffset: 0, analyzeResult: null, analyzeInput: null };
   var uid = function () { return Math.random().toString(36).slice(2, 9); };
   var DEFAULT_SETTINGS = { yourName: "Naomi Mwangi", businessName: "AI Automation Services", tone: "Formal",
     vipSenders: "Horizon Ventures, Bloom Interiors", urgentKeywords: "urgent, asap, immediately, deadline, overdue, critical, final reminder", autoProcess: true };
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
   function load() {
-    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (d && d.v === 1) return d; } } catch (e) { /* ignore */ }
+    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (d && d.v === 1) { d.notifications = d.notifications || []; d.notified = d.notified || {}; if (typeof d.liveMode !== "boolean") d.liveMode = true; return d; } } } catch (e) { /* ignore */ }
     return null;
   }
 
   function seed() {
     var now = Date.now();
-    S = { v: 1, settings: Object.assign({}, DEFAULT_SETTINGS), emails: [], tasks: [], events: [], followups: [], activity: [], incomingIdx: 0, created: now };
+    S = { v: 1, settings: Object.assign({}, DEFAULT_SETTINGS), emails: [], tasks: [], events: [], followups: [], activity: [], notifications: [], notified: {}, liveMode: true, incomingIdx: 0, created: now };
     window.DEMO_EMAILS.forEach(function (d, i) {
       var em = { id: "e" + (i + 1), from: d.from, email: d.email, org: d.org, subject: d.subject, body: d.body, ts: now - d.ago * 60000, read: d.ago > 1000, status: "new", draft: null, tone: null };
       em.analysis = E.analyze(em, S.settings);
@@ -82,6 +86,11 @@
     log("process", "Analysed: “" + S.emails[2].subject + "” → " + S.emails[2].analysis.priority, now - 94 * 60000);
     log("process", "Analysed: “" + S.emails[1].subject + "” → " + S.emails[1].analysis.priority, now - 51 * 60000);
     log("alert", "Urgent email flagged from Peter Kariuki (Kariuki Dental Clinic)", now - 17 * 60000);
+    S.notifications = [
+      { id: uid(), ts: now - 17 * 60000, text: "Urgent email from Peter Kariuki — appointment reminders stopped", view: "inbox", emailId: "e1", kind: "alert", read: false },
+      { id: uid(), ts: now - 51 * 60000, text: "Wanjiru Kamau needs a revised quote before tomorrow 10am", view: "inbox", emailId: "e2", kind: "mail", read: false },
+      { id: uid(), ts: now - 3 * 3600e3, text: "Follow-up overdue: Joseph Odhiambo — signed service agreement", view: "followups", kind: "followup", read: true }
+    ];
     save();
   }
 
@@ -118,14 +127,73 @@
   var PRANK = { Urgent: 0, Important: 1, Normal: 2, Low: 3 };
 
   /* ---------------- Analysis provider ---------------- */
-  function runAnalysis(em) {
-    if (!CFG.aiEndpoint) return Promise.resolve(E.analyze(em, S.settings));
-    return fetch(CFG.aiEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: em.from, email: em.email, subject: em.subject, body: em.body }) })
-      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-      .then(function (ai) { var base = E.analyze(em, S.settings); var out = Object.assign(base, ai || {}); out.engine = "ai"; return out; })
-      .catch(function () { var a = E.analyze(em, S.settings); a.engineNote = "AI endpoint unavailable — demonstration engine used"; return a; });
+  var AI_LIMIT = CFG.aiDailyLimit || 8;
+  function aiQuota() {
+    var t = iso(new Date());
+    try { var d = JSON.parse(localStorage.getItem("eaAiQuota") || "{}"); return d.day === t ? d : { day: t, n: 0 }; } catch (e) { return { day: t, n: 0 }; }
   }
-  function engineLabel() { return CFG.aiEndpoint ? (CFG.aiEndpointLabel || "Live AI endpoint") : "Demonstration engine"; }
+  function aiLeft() { return Math.max(0, AI_LIMIT - aiQuota().n); }
+  function aiUse() { var q = aiQuota(); q.n++; try { localStorage.setItem("eaAiQuota", JSON.stringify(q)); } catch (e) { /* */ } }
+  function liveAvailable() { return !!CFG.aiEndpoint; }
+  function runAnalysis(em, live) {
+    var base = E.analyze(em, S.settings);
+    if (!live || !liveAvailable()) return Promise.resolve(base);
+    if (!aiLeft()) { base.engineNote = "Today's live-AI limit for this browser is used up — demonstration engine shown"; return Promise.resolve(base); }
+    aiUse();
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, (CFG.aiTimeoutSeconds || 60) * 1000);
+    var body = new URLSearchParams({ from: em.from || "", email: em.email || "", subject: em.subject || "", body: em.body || "", yourName: S.settings.yourName || "" });
+    return fetch(CFG.aiEndpoint, { method: "POST", body: body, signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function (t) { clearTimeout(timer); var ai = parseAI(t); if (!ai) throw new Error("not JSON"); return normaliseAI(ai, base); })
+      .catch(function () { clearTimeout(timer); base.engineNote = "Live AI is unavailable right now — demonstration engine shown instead"; return base; });
+  }
+  function parseAI(t) {
+    if (!t) return null;
+    t = String(t).replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/, "");
+    var a = t.indexOf("{"), b = t.lastIndexOf("}");
+    if (a < 0 || b <= a) return null;
+    try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
+  }
+  function normaliseAI(ai, base) {
+    var DATE = /^\d{4}-\d{2}-\d{2}$/, TIME = /^\d{2}:\d{2}$/;
+    function str(v, d, n) { return typeof v === "string" && v.trim() ? v.trim().slice(0, n || 400) : d; }
+    function arr(v, n) { return Array.isArray(v) ? v.filter(function (x) { return typeof x === "string" && x.trim(); }).map(function (x) { return x.trim().slice(0, 120); }).slice(0, n || 5) : []; }
+    function oneOf(v, list, d) { return list.indexOf(v) >= 0 ? v : d; }
+    var o = Object.assign({}, base), en = ai.entities && typeof ai.entities === "object" ? ai.entities : {};
+    o.engine = "ai"; o.engineNote = null;
+    o.category = oneOf(ai.category, E.CATEGORIES, base.category);
+    o.intent = str(ai.intent, base.intent, 90);
+    o.intentId = "ai";
+    o.confidence = typeof ai.confidence === "number" && ai.confidence >= 0 && ai.confidence <= 1 ? ai.confidence : base.confidence;
+    o.secondaryIntents = arr(ai.secondaryIntents, 2);
+    o.priority = oneOf(ai.priority, ["Urgent", "Important", "Normal", "Low"], base.priority);
+    o.reasons = arr(ai.reasons, 4); if (!o.reasons.length) o.reasons = base.reasons;
+    o.requiresResponse = typeof ai.requiresResponse === "boolean" ? ai.requiresResponse : base.requiresResponse;
+    o.sentiment = oneOf(ai.sentiment, ["Positive", "Neutral", "Concerned", "Negative"], base.sentiment);
+    o.summary = str(ai.summary, base.summary, 420);
+    o.shortSummary = str(ai.shortSummary, trunc(o.summary, 118), 120);
+    o.entities = { people: arr(en.people, 4), organisations: arr(en.organisations, 4), amounts: arr(en.amounts, 4), references: arr(en.references, 4),
+      dates: Array.isArray(en.dates) ? en.dates.filter(function (d) { return d && DATE.test(d.date); }).map(function (d) { return { phrase: str(d.phrase, d.date, 60), date: d.date }; }).slice(0, 5) : [],
+      times: arr(en.times, 4), locations: arr(en.locations, 4), phones: arr(en.phones, 3), emails: arr(en.emails, 3), links: arr(en.links, 3) };
+    o.deadlines = Array.isArray(ai.deadlines) ? ai.deadlines.filter(function (d) { return d && DATE.test(d.date); }).map(function (d) {
+      return { label: oneOf(d.label, ["Deadline", "Meeting / event", "Mentioned date"], "Deadline"), date: d.date, time: TIME.test(d.time) ? d.time : null, phrase: str(d.phrase, E.fmt(d.date), 60), context: str(d.context, "", 120) };
+    }).slice(0, 4) : base.deadlines;
+    o.tasks = Array.isArray(ai.tasks) ? ai.tasks.filter(function (t) { return t && typeof t.text === "string" && t.text.trim(); }).map(function (t) { return { text: t.text.trim().slice(0, 100), due: DATE.test(t.due) ? t.due : null }; }).slice(0, 5) : base.tasks;
+    o.event = ai.event && typeof ai.event === "object" && DATE.test(ai.event.date) ? { title: str(ai.event.title, "Meeting", 80), date: ai.event.date, time: TIME.test(ai.event.time) ? ai.event.time : "10:00", kind: oneOf(ai.event.kind, ["meeting", "call", "event"], "meeting"), proposed: !!ai.event.proposed } : null;
+    o.followup = ai.followup && DATE.test(ai.followup.date) ? { date: ai.followup.date, note: str(ai.followup.note, "Check in", 100) } : (o.requiresResponse ? base.followup : null);
+    o.action = str(ai.action, base.action, 120);
+    o.actionType = oneOf(ai.actionType, ["reply", "calendar", "task", "archive", "file", "read"], base.actionType);
+    o.responseTime = str(ai.responseTime, base.responseTime, 40);
+    o.drafts = ai.drafts && typeof ai.drafts === "object" ? { Formal: str(ai.drafts.Formal, "", 3000), Friendly: str(ai.drafts.Friendly, "", 3000), Concise: str(ai.drafts.Concise, "", 3000) } : null;
+    o.keywords = [];
+    return o;
+  }
+  function draftFor(e, a, tone) {
+    if (a.drafts && a.drafts[tone]) return a.drafts[tone].replace(/\\n/g, "\n");
+    return E.draft(e, a, tone, S.settings);
+  }
+  function engineLabel() { return liveAvailable() ? "Demo engine + Live AI" : "Demonstration engine"; }
 
   /* ---------------- Derived data ---------------- */
   function active() { return S.emails.filter(function (e) { return e.status !== "archived"; }); }
@@ -174,8 +242,8 @@
       }).join("");
     }).join("");
     $("#engine-name").textContent = engineLabel();
-    $("#engine-dot").className = "dot" + (CFG.aiEndpoint ? " dot--live" : "");
-    $("#engine-desc").textContent = CFG.aiEndpoint ? "Emails are analysed by your connected AI endpoint." : "Rule-based analysis running in your browser. No AI service is called and no data leaves this page.";
+    $("#engine-dot").className = "dot" + (liveAvailable() ? " dot--live" : "");
+    $("#engine-desc").textContent = liveAvailable() ? "The sample inbox uses a rule-based demonstration engine in your browser. “Analyse an email” can also call a live AI model through Make.com." : "Rule-based analysis running in your browser. No AI service is called and no data leaves this page.";
     $("#avatar").textContent = initials(S.settings.yourName || "You");
   }
   function render() {
@@ -247,7 +315,7 @@
     return '<div class="page-head fade-in"><div><h2 style="font-size:1.45rem">' + greet + ", " + esc(name) + '</h2><p>' + esc(longDate()) + " · Here's what your assistant has prepared.</p></div>" +
       '<div class="btn-row"><button class="btn" data-act="simulate">' + ic("mail") + ' Simulate new email</button><a class="btn btn--primary" href="#briefing">' + ic("sun") + " Open daily briefing</a></div></div>" +
       '<div class="kpis fade-in">' + kHtml + "</div>" +
-      '<div class="ov-grid fade-in"><section class="card"><div class="card__head"><h2>' + ic("flag") + 'Needs your attention</h2><a class="btn btn--ghost btn--sm" href="#inbox">Open inbox ' + ic("arrow") + "</a></div>" + attHtml + "</section>" +
+      '<div class="ov-grid fade-in"><section class="card" id="attention"><div class="card__head"><h2>' + ic("flag") + 'Needs your attention</h2><a class="btn btn--ghost btn--sm" href="#inbox">Open inbox ' + ic("arrow") + "</a></div>" + attHtml + "</section>" +
       '<section class="card"><div class="card__head"><h2>' + ic("bolt") + "Recent activity</h2></div>" + actHtml + "</section></div>" +
       '<div class="ov-grid ov-grid--3 fade-in" style="margin-top:1rem"><section class="card"><div class="card__head"><h2>' + ic("clock") + 'Upcoming deadlines</h2><a class="btn btn--ghost btn--sm" href="#tasks">All tasks</a></div>' + dlHtml + "</section>" +
       '<section class="card"><div class="card__head"><h2>' + ic("tag") + 'Inbox by category</h2></div><div class="card__body">' + barHtml + '<h3 class="mt-1" style="font-size:.8rem;color:var(--muted);margin-bottom:.2rem">Priority mix</h3>' + stack + "</div></section>" +
@@ -319,20 +387,27 @@
     return head + '<div class="hint" style="padding:.6rem 1.2rem 0">Highlighted text influenced the analysis. ' + engineBadge(e.analysis) + "</div>" + analysisHtml(e, e.analysis, "inbox") + "</div>";
   }
   function engineBadge(a) {
-    return a.engine === "ai" ? '<span class="badge b-green">' + esc(engineLabel()) + "</span>" : '<span class="badge b-purple" title="Rule-based analysis running in your browser">Demonstration engine</span>' + (a.engineNote ? ' <span class="small muted">' + esc(a.engineNote) + "</span>" : "");
+    return a.engine === "ai" ? '<span class="badge b-green">' + esc(CFG.aiEndpointLabel || "Live AI") + "</span>" : '<span class="badge b-purple" title="Rule-based analysis running in your browser">Demonstration engine</span>' + (a.engineNote ? ' <span class="small muted">' + esc(a.engineNote) + "</span>" : "");
   }
 
   /* Shared analysis component (inbox detail + analyse page) */
+  function editBtn(id, block, label) { return '<button class="icon-btn edit-btn" data-act="edit" data-id="' + id + '" data-block="' + block + '" aria-label="Edit ' + label + '" title="Edit">' + ic("pen") + "</button>"; }
+  function editFoot(id) { return '<div class="btn-row mt-1"><button class="btn btn--primary btn--sm" data-act="save-edit" data-id="' + id + '">Save</button><button class="btn btn--sm" data-act="cancel-edit">Cancel</button></div>'; }
+  var ENT_FIELDS = [["people", "People"], ["organisations", "Organisations"], ["amounts", "Amounts"], ["references", "References"], ["times", "Times"], ["locations", "Locations"], ["phones", "Phones"], ["emails", "Emails"]];
   function analysisHtml(e, a, ctx) {
+    var ed = ctx === "inbox" && ui.editing && ui.editing.id === e.id ? ui.editing.block : null;
     var en = a.entities, rows = [];
     function kv(label, arr, map) { if (arr && arr.length) rows.push("<dt>" + label + "</dt><dd>" + arr.map(function (x) { return '<span class="ent">' + esc(map ? map(x) : x) + "</span>"; }).join("") + "</dd>"); }
     kv("People", en.people); kv("Organisations", en.organisations); kv("Amounts", en.amounts); kv("References", en.references);
     kv("Dates", en.dates, function (d) { return d.phrase + " → " + fmt(d.date); }); kv("Times", en.times); kv("Locations", en.locations);
     kv("Contact", (en.phones || []).concat(en.emails || [])); kv("Links", en.links);
     var extracted = rows.length ? '<dl class="kv">' + rows.join("") + "</dl>" : '<p class="muted mb-0">No specific details found.</p>';
+    if (ed === "entities") extracted = '<div class="form">' + ENT_FIELDS.map(function (f) { return '<div class="field"><label for="ed-' + f[0] + '">' + f[1] + ' <span class="muted" style="font-weight:400">(comma-separated)</span></label><input id="ed-' + f[0] + '" value="' + esc((en[f[0]] || []).join(", ")) + '"></div>'; }).join("") + "</div>" + editFoot(e.id);
     var dls = a.deadlines.length ? a.deadlines.map(function (d, i) {
       return '<div class="deadline">' + ic(d.label === "Deadline" ? "clock" : "cal") + '<span><b style="color:var(--ink)">' + esc(d.label) + '</b><br><span class="rel">“' + esc(d.phrase) + "” · " + esc(rel(d.date)) + '</span></span><span class="when">' + fmt(d.date) + (d.time ? ", " + fmtTime(d.time) : "") + "</span></div>";
     }).join("") : '<p class="muted mb-0">No deadlines detected.</p>';
+    if (ed === "deadlines") dls = '<div class="form">' + a.deadlines.map(function (d, i) { return '<div class="field"><label>' + esc(d.label) + " — “" + esc(d.phrase) + '”</label><div class="field-row"><input type="date" id="ed-dl-' + i + '-date" value="' + d.date + '" aria-label="Date"><input type="time" id="ed-dl-' + i + '-time" value="' + (d.time || "") + '" aria-label="Time"></div><label class="small" style="font-weight:500;display:flex;gap:.4rem;align-items:center;margin-top:.3rem"><input type="checkbox" id="ed-dl-' + i + '-del"> Remove</label></div>'; }).join("") +
+      '<div class="field"><label for="ed-dl-new">Add a deadline</label><div class="field-row"><input id="ed-dl-new" placeholder="e.g. Send contract"><input type="date" id="ed-dl-new-date" aria-label="New deadline date"></div></div></div>' + editFoot(e.id);
     var inTasks = ctx === "inbox";
     var tasks = a.tasks.length ? '<ul class="list">' + a.tasks.map(function (t) {
       var listed = inTasks && S.tasks.some(function (x) { return x.emailId === e.id && x.text === t.text; });
@@ -347,7 +422,7 @@
     }
     var conf = Math.round(a.confidence * 100);
     var tone = e.tone || S.settings.tone || "Formal";
-    var draftText = e.draft != null ? e.draft : E.draft(e, a, tone, S.settings);
+    var draftText = e.draft != null ? e.draft : draftFor(e, a, tone);
     var actionBtn = { reply: ["Review the draft reply", "focus-draft", "pen"], calendar: ["Add to calendar", "accept-event-email", "cal"], task: ["Add to task list", "add-tasks", "check"], archive: ["Archive email", "archive", "archive"], file: ["Archive & file", "archive", "archive"], read: ["Mark as read", "mark-read", "mail"] }[a.actionType] || ["Review", "focus-draft", "pen"];
     var replied = e.status === "replied";
     var draftBlock = a.requiresResponse ? (replied ? '<div class="status-line" style="background:var(--green-soft);color:var(--green)">' + ic("check") + "<span>Reply approved and sent" + (e.sentAt ? " " + ago(e.sentAt) : "") + " (simulated). A follow-up reminder was created.</span></div>" :
@@ -357,18 +432,18 @@
       '<p class="muted mb-0">No reply needed for this email.</p>';
 
     return '<div class="analysis">' +
-      '<div class="ablock ablock--wide"><h4>' + ic("list") + "Email summary</h4><p>" + esc(a.summary) + '</p><p class="small muted mb-0">Sentiment: ' + esc(a.sentiment) + " · Response needed: " + (a.requiresResponse ? "Yes" : "No") + "</p></div>" +
+      '<div class="ablock ablock--wide"><h4>' + ic("list") + "Email summary" + (a.edited ? ' <span class="badge b-outline" style="margin-left:.3rem">Edited by you</span>' : "") + (inTasks && !ed ? editBtn(e.id, "summary", "summary") : "") + "</h4>" + (ed === "summary" ? '<label class="sr-only" for="ed-summary">Summary</label><textarea class="draft" id="ed-summary" style="min-height:90px">' + esc(a.summary) + "</textarea>" + editFoot(e.id) : "<p>" + esc(a.summary) + "</p>") + '<p class="small muted mb-0">Sentiment: ' + esc(a.sentiment) + " · Response needed: " + (a.requiresResponse ? "Yes" : "No") + "</p></div>" +
       '<div class="ablock"><h4>' + ic("target") + "Intent detection</h4><p class=\"mb-0\" style=\"color:var(--ink);font-weight:600\">" + esc(a.intent) + '</p><div class="conf"><span>Confidence</span><span class="conf__track"><span class="conf__fill" style="width:' + conf + '%"></span></span><b>' + conf + "%</b></div>" + (a.secondaryIntents && a.secondaryIntents.length ? '<p class="small muted mt-1 mb-0">Also: ' + esc(a.secondaryIntents.join("; ")) + "</p>" : "") + "</div>" +
       '<div class="ablock"><h4>' + ic("flag") + 'Priority classification</h4><div class="btn-row">' + pBadge(a.priority) + catBadge(a.category) + '<span class="small muted">score ' + a.score + "</span></div>" +
       '<ul class="reasons">' + a.reasons.map(function (r) { return "<li>" + esc(r) + "</li>"; }).join("") + "</ul>" +
       (inTasks ? '<label class="small muted" style="display:flex;gap:.4rem;align-items:center;margin-top:.5rem">Override <select data-act="override" data-id="' + e.id + '" style="font:inherit;font-size:.8rem;padding:.15rem .3rem;border:1px solid var(--line);border-radius:6px">' + ["Urgent", "Important", "Normal", "Low"].map(function (p) { return "<option" + (p === a.priority ? " selected" : "") + ">" + p + "</option>"; }).join("") + "</select></label>" : "") + "</div>" +
-      '<div class="ablock"><h4>' + ic("tag") + "Important information extracted</h4>" + extracted + "</div>" +
-      '<div class="ablock"><h4>' + ic("clock") + "Deadlines</h4>" + dls + "</div>" +
+      '<div class="ablock"><h4>' + ic("tag") + "Important information extracted" + (inTasks && !ed ? editBtn(e.id, "entities", "extracted information") : "") + "</h4>" + extracted + "</div>" +
+      '<div class="ablock"><h4>' + ic("clock") + "Deadlines" + (inTasks && !ed ? editBtn(e.id, "deadlines", "deadlines") : "") + "</h4>" + dls + "</div>" +
       '<div class="ablock ablock--wide ablock--action"><h4>' + ic("bolt") + 'Recommended action</h4><p class="action">' + esc(a.action) + '</p><p class="small muted">Suggested response time: ' + esc(a.responseTime) + "</p>" +
       (inTasks && !replied ? '<button class="btn btn--navy btn--sm" data-act="' + actionBtn[1] + '" data-id="' + e.id + '">' + ic(actionBtn[2]) + " " + actionBtn[0] + "</button>" : "") + "</div>" +
       '<div class="ablock"><h4>' + ic("check") + "Tasks extracted</h4>" + tasks + "</div>" +
       '<div class="ablock"><h4>' + ic("cal") + "Calendar &amp; follow-up</h4>" + (evHtml || '<p class="muted">No meeting detected.</p>') + (a.followup ? '<p class="small mt-1 mb-0">Follow-up: <b>' + fmt(a.followup.date) + "</b> — " + esc(a.followup.note) + "</p>" : "") + "</div>" +
-      '<div class="ablock ablock--wide"><h4>' + ic("pen") + "Suggested response</h4>" + draftBlock + "</div>" +
+      '<div class="ablock ablock--wide" id="' + (inTasks ? "draft-block" : "draft-block-a") + '"><h4>' + ic("pen") + "Suggested response" + (a.drafts ? ' <span class="badge b-green" style="margin-left:.3rem">Written by AI</span>' : "") + "</h4>" + draftBlock + "</div>" +
       "</div>";
   }
   function findConflict(ev, ignoreId) {
@@ -390,11 +465,16 @@
       '<div class="field"><label for="a-email">Sender email</label><input id="a-email" name="email" type="email" maxlength="80" placeholder="jane@example.com" value="' + esc(inp.email) + '"></div></div>' +
       '<div class="field"><label for="a-subject">Subject</label><input id="a-subject" name="subject" maxlength="140" placeholder="e.g. Proposal needed by Friday" value="' + esc(inp.subject) + '"></div>' +
       '<div class="field" id="f-body"><label for="a-body">Email body *</label><textarea id="a-body" name="body" maxlength="5000" placeholder="Write or paste a fictional email here…">' + esc(inp.body) + '</textarea><p class="err" role="alert">Please enter the email text (at least a sentence).</p></div>' +
+      (liveAvailable() ? '<div class="field"><span class="label-like">Analysis engine</span><div class="engine-pick"><div class="seg" role="group" aria-label="Analysis engine"><button type="button" data-act="engine" data-engine="live" aria-pressed="' + ui.useLive + '">' + ic("bolt") + ' Live AI</button><button type="button" data-act="engine" data-engine="demo" aria-pressed="' + !ui.useLive + '">' + ic("cog") + ' Demo engine</button></div><span class="hint">' + (ui.useLive ? aiLeft() + " of " + AI_LIMIT + " live analyses left today in this browser" : "Instant, rule-based, runs in your browser") + "</span></div></div>" : "") +
       '<div class="btn-row"><button type="submit" class="btn btn--primary">' + ic("spark") + ' Run analysis</button><button type="button" class="btn btn--ghost" data-act="clear-analyze">Clear</button></div>' +
-      '<p class="hint mb-0">' + ic("info").replace("<svg", '<svg style="display:inline;width:13px;height:13px;vertical-align:-2px"') + " Use fictional content only. " + (CFG.aiEndpoint ? "Text is sent to the configured AI endpoint." : "The demonstration engine runs in your browser — nothing is sent anywhere.") + "</p>" +
+      '<p class="hint mb-0">' + ic("info").replace("<svg", '<svg style="display:inline;width:13px;height:13px;vertical-align:-2px"') + " Use fictional content only. " + (liveAvailable() && ui.useLive ? "With Live AI, the text is sent to Make.com and an AI model to be analysed, then returned here. It is not stored on this website." : "The demonstration engine runs in your browser — nothing is sent anywhere.") + "</p>" +
       "</form></div></section>" +
       '<section class="card" id="analyze-out"><div class="card__head"><h2>' + ic("spark") + 'Assistant analysis</h2><span id="analyze-engine">' + (res ? engineBadge(res.a) : '<span class="badge b-purple">' + esc(engineLabel()) + "</span>") + '</span></div><div class="card__body" style="padding-bottom:.4rem"><div class="pipeline" id="pipeline">' + steps + "</div></div>" +
       '<div id="analyze-result">' + (res ? analyzeResultHtml(res) : '<div class="card__body">' + empty("spark", "Choose an example or write your own email, then click “Run analysis”.") + "</div>") + "</div></section></div>";
+  }
+  function currentAnalyzeInput() {
+    var f = $("#analyze-form"); if (!f) return ui.analyzeInput;
+    return { from: f.from.value, email: f.email.value, subject: f.subject.value, body: f.body.value };
   }
   function analyzeResultHtml(res) {
     var json = JSON.stringify({ category: res.a.category, intent: res.a.intent, confidence: res.a.confidence, priority: res.a.priority, requires_response: res.a.requiresResponse, summary: res.a.summary, entities: res.a.entities, deadlines: res.a.deadlines, tasks: res.a.tasks, calendar_event: res.a.event, recommended_action: res.a.action }, null, 2);
@@ -409,8 +489,10 @@
     fb.classList.remove("has-error");
     var btn = form.querySelector("[type=submit]"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analysing…';
     var em = { id: "draft-" + uid(), from: data.from, email: data.email, org: "", subject: data.subject, body: data.body, ts: Date.now(), read: true, status: "new" };
-    $("#analyze-result").innerHTML = '<div class="card__body">' + empty("spark", "Working…").replace("<svg", '<svg class="spinner spinner--dark" style="border-radius:50%;width:28px;height:28px"') + "</div>";
-    animatePipeline().then(function () { return runAnalysis(em); }).then(function (a) {
+    var live = liveAvailable() && ui.useLive;
+    $("#analyze-result").innerHTML = '<div class="card__body"><div class="empty"><span class="spinner spinner--dark" style="display:block;margin:0 auto .7rem;width:26px;height:26px"></span><p class="mb-0" id="wait-msg">' + (live ? "Sending to the live AI model through Make.com… this usually takes 5–20 seconds." : "Analysing…") + "</p></div></div>";
+    var analysis = runAnalysis(em, live);
+    Promise.all([animatePipeline(true), analysis]).then(function (r) { finishPipeline(); return r[1]; }).then(function (a) {
       em.analysis = a; ui.analyzeResult = { e: em, a: a };
       $("#analyze-result").innerHTML = analyzeResultHtml(ui.analyzeResult);
       $("#analyze-engine").innerHTML = engineBadge(a);
@@ -419,17 +501,19 @@
       if (window.innerWidth < 1100) $("#analyze-out").scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
-  function animatePipeline() {
+  function animatePipeline(holdLast) {
     var steps = $$("#pipeline .step"), i = 0;
     steps.forEach(function (s) { s.classList.remove("is-active", "is-done"); });
     return new Promise(function (resolve) {
       (function next() {
         if (i > 0) { steps[i - 1].classList.remove("is-active"); steps[i - 1].classList.add("is-done"); }
+        if (holdLast && i === steps.length - 1) { steps[i].classList.add("is-active"); return resolve(); }
         if (i >= steps.length) return resolve();
         steps[i].classList.add("is-active"); i++; setTimeout(next, reduced() ? 40 : 380);
       })();
     });
   }
+  function finishPipeline() { $$("#pipeline .step").forEach(function (s) { s.classList.remove("is-active"); s.classList.add("is-done"); }); }
   function reduced() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
 
   /* ---------------- Tasks ---------------- */
@@ -445,9 +529,28 @@
         return '<div class="group-h"><span>' + g[0] + "</span><span>" + items.length + '</span></div><ul class="list">' + items.map(taskRow).join("") + "</ul>";
       }).join("") : empty("check", "No open tasks — nice work.");
     } else body = done.length ? '<ul class="list">' + done.map(taskRow).join("") + "</ul>" : empty("check", "No completed tasks yet.");
-    return '<div class="card"><div class="card__head"><h2>' + ic("check") + 'Tasks</h2><span class="small muted">' + open.length + " open · " + done.length + ' completed</span></div>' +
-      '<form class="add-task" id="add-task" autocomplete="off"><label class="sr-only" for="t-text">New task</label><input id="t-text" placeholder="Add a task…" maxlength="120" required><label class="sr-only" for="t-due">Due date</label><input id="t-due" type="date" value="' + iso(E.addDays(new Date(), 1)) + '"><label class="sr-only" for="t-pri">Priority</label><select id="t-pri"><option>Urgent</option><option>Important</option><option selected>Normal</option><option>Low</option></select><button class="btn btn--primary" type="submit">' + ic("plus") + " Add</button></form>" +
+    var viewSeg = '<div class="seg" role="group" aria-label="Task view"><button type="button" data-act="task-view" data-v="list" aria-pressed="' + (ui.taskView === "list") + '">' + ic("list") + ' List</button><button type="button" data-act="task-view" data-v="board" aria-pressed="' + (ui.taskView === "board") + '">' + ic("board") + " Board</button></div>";
+    if (ui.taskView === "board") return '<div class="card" id="tasks-card"><div class="card__head"><h2>' + ic("check") + 'Tasks</h2><div class="btn-row"><span class="small muted">Drag cards between columns</span>' + viewSeg + "</div></div>" + addTaskForm() + boardHtml() + "</div>";
+    return '<div class="card" id="tasks-card"><div class="card__head"><h2>' + ic("check") + 'Tasks</h2><div class="btn-row"><span class="small muted">' + open.length + " open · " + done.length + " completed</span>" + viewSeg + "</div></div>" +
+      addTaskForm() +
       '<div class="tabs" role="tablist"><button role="tab" data-act="task-tab" data-tab="open" aria-selected="' + (ui.taskTab === "open") + '">Open (' + open.length + ')</button><button role="tab" data-act="task-tab" data-tab="done" aria-selected="' + (ui.taskTab === "done") + '">Completed (' + done.length + ")</button></div>" + body + "</div>";
+  }
+  function addTaskForm() {
+    return '<form class="add-task" id="add-task" autocomplete="off"><label class="sr-only" for="t-text">New task</label><input id="t-text" placeholder="Add a task…" maxlength="120" required><label class="sr-only" for="t-due">Due date</label><input id="t-due" type="date" value="' + iso(E.addDays(new Date(), 1)) + '"><label class="sr-only" for="t-pri">Priority</label><select id="t-pri"><option>Urgent</option><option>Important</option><option selected>Normal</option><option>Low</option></select><button class="btn btn--primary" type="submit">' + ic("plus") + " Add</button></form>";
+  }
+  function boardHtml() {
+    var cols = [["todo", "To do"], ["doing", "In progress"], ["done", "Done"]];
+    return '<div class="board">' + cols.map(function (c) {
+      var items = S.tasks.filter(function (t) { return taskStatus(t) === c[0]; }).sort(function (a, b) { return c[0] === "done" ? (b.doneTs || 0) - (a.doneTs || 0) : ((a.due || "z") < (b.due || "z") ? -1 : 1); });
+      if (c[0] === "done") items = items.slice(0, 12);
+      return '<section class="kcol" data-drop-status="' + c[0] + '" aria-label="' + c[1] + '"><div class="kcol__h"><b>' + c[1] + '</b><span class="count">' + S.tasks.filter(function (t) { return taskStatus(t) === c[0]; }).length + "</span></div>" +
+        (items.length ? items.map(function (t) {
+          var src = t.emailId && email(t.emailId);
+          return '<article class="kcard' + (c[0] === "done" ? " done" : "") + '" draggable="true" data-drag-task="' + t.id + '"><div class="kcard__top"><span class="grip" aria-hidden="true">' + ic("grip") + '</span><span class="kcard__text">' + esc(t.text) + "</span></div>" +
+            '<div class="task__meta"><span class="pdot ' + String(t.priority || "normal").toLowerCase() + '"></span>' + (c[0] === "done" ? "<span>Done " + ago(t.doneTs) + "</span>" : dueLabel(t.due)) + (src ? "<span>" + esc(src.from) + "</span>" : "") + "</div>" +
+            '<label class="sr-only" for="ts-' + t.id + '">Status</label><select class="kstatus" id="ts-' + t.id + '" data-task-status="' + t.id + '">' + cols.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === c[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select></article>";
+        }).join("") : '<p class="kempty">Drop tasks here</p>') + "</section>";
+    }).join("") + "</div>";
   }
   function taskRow(t) {
     var src = t.emailId && email(t.emailId);
@@ -482,21 +585,21 @@
     var evs = S.events.slice().sort(evSort);
     var cols = days.map(function (d) {
       var k = iso(d), list = evs.filter(function (e) { return e.date === k; });
-      return '<div class="day' + (k === today ? " today" : "") + (d.getDay() % 6 === 0 ? " weekend" : "") + '"><div class="day__h"><span>' + ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + "</span><b>" + d.getDate() + "</b></div><div>" +
+      return '<div class="day' + (k === today ? " today" : "") + (d.getDay() % 6 === 0 ? " weekend" : "") + '" data-drop-date="' + k + '"><div class="day__h"><span>' + ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + "</span><b>" + d.getDate() + "</b></div><div>" +
         (list.length ? list.map(evHtml).join("") : '<span class="small" style="color:var(--faint)">Free</span>') + "</div></div>";
     }).join("");
     var lastDay = iso(days[6]);
     var later = evs.filter(function (e) { return e.date > lastDay; }).slice(0, 6);
     var sugg = evs.filter(function (e) { return e.status === "suggested"; });
     return '<div class="card"><div class="card__head"><h2>' + ic("cal") + fmt(iso(days[0])) + " – " + fmt(lastDay) + '</h2><div class="btn-row"><button class="icon-btn" data-act="week" data-d="-1" aria-label="Previous week">' + ic("chevL") + '</button><button class="btn btn--sm" data-act="week" data-d="0">Today</button><button class="icon-btn" data-act="week" data-d="1" aria-label="Next week">' + ic("chev") + '</button><button class="btn btn--sm btn--primary" data-act="new-event">' + ic("plus") + " New event</button></div></div>" +
-      '<div class="card__body small muted" style="padding-bottom:.6rem">Dashed items are suggestions from your inbox, waiting for approval. ' + sugg.length + " suggestion" + (sugg.length === 1 ? "" : "s") + " pending.</div>" +
+      '<div class="card__body small muted" style="padding-bottom:.6rem">Dashed items are suggestions from your inbox, waiting for approval. Drag events between days, or click one to edit. ' + sugg.length + " suggestion" + (sugg.length === 1 ? "" : "s") + " pending.</div>" +
       '<div class="week">' + cols + "</div></div>" +
       (later.length ? '<section class="card" style="margin-top:1rem"><div class="card__head"><h2>' + ic("clock") + 'Later</h2></div><ul class="list">' + later.map(function (e) { return '<li class="row"><span class="row__meta" style="width:110px">' + fmt(e.date) + ", " + fmtTime(e.time) + '</span><span class="row__main"><span class="row__title">' + esc(e.title) + '</span><span class="row__sub">' + (e.status === "suggested" ? "Suggested — awaiting approval" : "Confirmed") + "</span></span>" + (e.status === "suggested" ? '<button class="btn btn--xs btn--navy" data-act="ev-accept" data-id="' + e.id + '">Accept</button>' : "") + "</li>"; }).join("") + "</ul></section>" : "");
   }
   function evHtml(e) {
     var cls = e.status === "suggested" ? "suggested" : e.kind === "external" || e.kind === "meeting" ? "purple" : e.kind === "event" ? "amber" : "";
     var conflict = e.status === "suggested" && findConflict(e, e.id);
-    return '<div class="ev ' + cls + (conflict ? " conflict" : "") + '"><b>' + fmtTime(e.time) + (e.status === "suggested" ? " · suggested" : "") + "</b>" + esc(e.title) +
+    return '<div class="ev ' + cls + (conflict ? " conflict" : "") + '" draggable="true" data-drag-ev="' + e.id + '"><b>' + fmtTime(e.time) + (e.status === "suggested" ? " · suggested" : "") + '</b><button class="ev-title" data-act="ev-edit" data-id="' + e.id + '" title="Edit event">' + esc(e.title) + "</button>" +
       (conflict ? '<div style="color:var(--urgent);font-size:.7rem;margin-top:.2rem">Clashes with ' + esc(conflict.title) + "</div>" : "") +
       (e.status === "suggested" ? '<div class="ev-actions"><button class="btn btn--xs btn--navy" data-act="ev-accept" data-id="' + e.id + '">Accept</button><button class="btn btn--xs" data-act="ev-dismiss" data-id="' + e.id + '">Dismiss</button></div>' :
         '<div class="ev-actions"><button class="btn btn--xs btn--ghost" data-act="ev-delete" data-id="' + e.id + '" aria-label="Remove ' + esc(e.title) + '">Remove</button></div>') + "</div>";
@@ -572,6 +675,9 @@
 
   /* ---------------- After render: bind non-delegated bits ---------------- */
   function afterRender() {
+    bindDnD();
+    $$("select[data-task-status]").forEach(function (sel) { sel.addEventListener("change", function () { setTaskStatus(sel.getAttribute("data-task-status"), sel.value); }); });
+    var lb = $("#live-btn"); if (lb) updateLiveBtn();
     var af = $("#analyze-form"); if (af) af.addEventListener("submit", function (e) { e.preventDefault(); runAnalyzePage(af); });
     var tf = $("#add-task"); if (tf) tf.addEventListener("submit", function (e) {
       e.preventDefault(); var t = $("#t-text").value.trim(); if (!t) { $("#t-text").focus(); return; }
@@ -615,15 +721,16 @@
       case "focus-draft": var ta = $("#draft-" + id); if (ta) { ta.scrollIntoView({ behavior: "smooth", block: "center" }); ta.focus(); } break;
       case "tone":
         var target = em || (ui.analyzeResult && ui.analyzeResult.e.id === id ? ui.analyzeResult.e : null);
-        if (!target) break; target.tone = el.getAttribute("data-tone"); target.draft = E.draft(target, target.analysis, target.tone, S.settings);
+        if (!target) break; target.tone = el.getAttribute("data-tone"); target.draft = draftFor(target, target.analysis, target.tone);
         if (em) save(); refreshDraft(target); break;
       case "regen":
         var tg = em || (ui.analyzeResult && ui.analyzeResult.e);
-        tg.draft = E.draft(tg, tg.analysis, tg.tone || S.settings.tone, S.settings); if (em) save(); refreshDraft(tg); toast("Draft regenerated"); break;
+        tg.draft = draftFor(tg, tg.analysis, tg.tone || S.settings.tone); if (em) save(); refreshDraft(tg); toast("Draft regenerated"); break;
       case "copy-draft": copy(($("#draft-" + id) || {}).value || "", "Draft copied"); break;
       case "approve": approve(em); break;
       case "override": break;
       case "example": var x = window.DEMO_EXAMPLES[+el.getAttribute("data-i")]; ui.analyzeInput = { from: x.from, email: x.email, subject: x.subject, body: x.body }; ui.analyzeResult = null; render(); $("#a-body").focus(); break;
+      case "engine": ui.useLive = el.getAttribute("data-engine") === "live"; ui.analyzeInput = currentAnalyzeInput(); render(); break;
       case "clear-analyze": ui.analyzeInput = null; ui.analyzeResult = null; render(); break;
       case "add-to-inbox": addAnalyzedToInbox(); break;
       case "task-tab": ui.taskTab = el.getAttribute("data-tab"); render(); break;
@@ -641,9 +748,42 @@
       case "regen-brief": log("process", "Daily briefing regenerated"); save(); render(); toast("Briefing refreshed"); break;
       case "reset": confirmModal("Reset demo data?", "This restores the original fictional inbox, tasks and calendar. Your changes in this browser will be lost.", "Reset", function () { try { localStorage.removeItem(KEY); } catch (e) { /* */ } seed(); ui.selected = null; ui.analyzeResult = null; render(); toast("Demo data reset"); }); break;
       case "close-modal": closeModal(); break;
+      case "bell": ev.stopPropagation(); toggleBell(); break;
+      case "notif-readall": S.notifications.forEach(function (n) { n.read = true; }); save(); renderBell(); break;
+      case "notif-open":
+        var nt = S.notifications.filter(function (n) { return n.id === id; })[0]; if (!nt) break;
+        nt.read = true; save(); toggleBell(false); renderBell();
+        if (nt.emailId && email(nt.emailId)) openEmail(nt.emailId); else go(nt.view || "overview");
+        break;
+      case "live": S.liveMode = !S.liveMode; save(); if (S.liveMode) { live.count = Math.min(live.count, (CFG.liveArrivalMax || 10) - 1); scheduleLive(true); toast("Live mode on — new emails will arrive automatically"); } else { clearTimeout(live.timer); updateLiveBtn(); toast("Live mode paused"); } break;
+      case "tour": startTour(); break;
+      case "tour-next": tour.i++; if (tour.i >= TOUR.length) endTour(true); else showStep(); break;
+      case "tour-prev": tour.i = Math.max(0, tour.i - 1); showStep(); break;
+      case "tour-skip": endTour(false); break;
+      case "task-view": ui.taskView = el.getAttribute("data-v"); render(); break;
+      case "edit": ui.editing = { id: id, block: el.getAttribute("data-block") }; render(); var f0 = $(".analysis textarea#ed-summary, .analysis input"); if (f0) f0.focus(); break;
+      case "cancel-edit": ui.editing = null; render(); break;
+      case "save-edit": saveEdit(em); break;
+      case "ev-edit": eventModal(evById(id)); break;
       case "menu": openMenu(); break;
     }
   }
+  function saveEdit(em) {
+    var a = em.analysis, blk = ui.editing && ui.editing.block; if (!a || !blk) return;
+    function list(v) { return String(v || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 8); }
+    if (blk === "summary") { var v = $("#ed-summary").value.trim(); if (v) { a.summary = v; a.shortSummary = trunc(v, 118); } }
+    if (blk === "entities") ENT_FIELDS.forEach(function (f) { var inp = $("#ed-" + f[0]); if (inp) a.entities[f[0]] = list(inp.value); });
+    if (blk === "deadlines") {
+      var keep = [];
+      a.deadlines.forEach(function (d, i) { if ($("#ed-dl-" + i + "-del").checked) return; d.date = $("#ed-dl-" + i + "-date").value || d.date; d.time = $("#ed-dl-" + i + "-time").value || null; keep.push(d); });
+      var nt = $("#ed-dl-new").value.trim(), nd = $("#ed-dl-new-date").value;
+      if (nt && nd) { keep.push({ label: "Deadline", date: nd, time: null, phrase: nt, context: nt }); S.tasks.push({ id: uid(), text: nt, due: nd, done: false, priority: a.priority, emailId: em.id, createdTs: Date.now() }); }
+      a.deadlines = keep.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+    }
+    a.edited = true; ui.editing = null;
+    log("process", "Analysis corrected by you: “" + trunc(em.subject, 50) + "”"); save(); render(); toast("Saved — your corrections are kept");
+  }
+  function flashInbox() { var n = $('#nav a[href="#inbox"]'); if (n) { n.classList.remove("ping"); void n.offsetWidth; n.classList.add("ping"); } }
   function fu(id) { return S.followups.filter(function (f) { return f.id === id; })[0]; }
   function evById(id) { return S.events.filter(function (e) { return e.id === id; })[0]; }
   function openEmail(id) {
@@ -657,10 +797,11 @@
     if (window.innerWidth < 1150) window.scrollTo(0, 0);
   }
   function refreshDraft(target) {
-    var ta = $("#draft-" + target.id); if (ta) { ta.value = target.draft; ta.classList.add("flash"); setTimeout(function () { ta.classList.remove("flash"); }, 1600); }
+    var ta = $("#draft-" + target.id); if (ta) typeInto(ta, target.draft);
     $$('[data-act=tone][data-id="' + target.id + '"]').forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-tone") === target.tone); });
   }
   function approve(em) {
+    finishTyping();
     var ta = $("#draft-" + em.id), text = ta ? ta.value.trim() : "";
     if (!text) { toast("The reply is empty — write or regenerate a draft first."); return; }
     em.status = "replied"; em.sentAt = Date.now(); em.draft = text;
@@ -700,17 +841,18 @@
       return a;
     });
   }
-  function simulate() {
+  function simulate(auto) {
     var pool = window.DEMO_INCOMING, src = pool[S.incomingIdx % pool.length]; S.incomingIdx++;
     var em = { id: "n" + uid(), from: src.from, email: src.email, org: src.org, subject: src.subject, body: src.body, ts: Date.now(), read: false, status: "new", draft: null, tone: null, analysis: null };
     S.emails.push(em); log("new", "New email from " + em.from + ": “" + trunc(em.subject, 50) + "”"); save();
     if (S.settings.autoProcess) {
-      render(); toast("New email from " + em.from + " — analysing…");
+      render(); toast("New email from " + em.from + " — analysing…"); flashInbox();
       setTimeout(function () { runAnalysis(em).then(function (a) {
         em.analysis = a; addTasksFrom(em, true);
         if (a.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, a.event));
         log(a.priority === "Urgent" ? "alert" : "process", "Analysed: “" + trunc(em.subject, 50) + "” → " + a.priority + " · " + a.category);
-        save(); render(); toast(a.priority + " · " + a.category + ": " + trunc(em.subject, 50), "Open", function () { openEmail(em.id); });
+        save(); render(); toast((auto ? "New email · " : "") + a.priority + " · " + a.category + ": " + trunc(em.subject, 50), "Open", function () { openEmail(em.id); });
+        notify((a.priority === "Urgent" || a.priority === "Important" ? a.priority + " email" : "New email") + " from " + em.from + ": " + trunc(em.subject, 60), "inbox", em.id, a.priority === "Urgent" ? "alert" : "mail");
       }); }, reduced() ? 50 : 1100);
     } else { render(); toast("New email from " + em.from + " (not analysed yet)", "Open", function () { openEmail(em.id); }); }
   }
@@ -744,12 +886,16 @@
       log("followup", "Follow-up sent to " + f.contact + " (simulated)"); save(); closeModal(); render(); toast("Follow-up sent to " + f.contact + ". Next check: " + fmt(f.due));
     });
   }
-  function eventModal() {
-    openModal('<h2 id="modal-title">New event</h2><form class="form" id="ev-form" novalidate><div class="field"><label for="ev-title">Title</label><input id="ev-title" required maxlength="80" placeholder="e.g. Client call"></div><div class="field-row"><div class="field"><label for="ev-date">Date</label><input id="ev-date" type="date" required value="' + iso(E.addDays(new Date(), 1)) + '"></div><div class="field"><label for="ev-time">Time</label><input id="ev-time" type="time" required value="10:00"></div></div><div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn" data-act="close-modal">Cancel</button><button class="btn btn--primary" type="submit">Add event</button></div></form>');
+  function eventModal(existing) {
+    var x = existing || { title: "", date: iso(E.addDays(new Date(), 1)), time: "10:00" };
+    openModal('<h2 id="modal-title">' + (existing ? "Edit event" : "New event") + '</h2>' + (existing && existing.status === "suggested" ? '<p class="small muted">Suggested from your inbox — saving will confirm it.</p>' : "") + '<form class="form" id="ev-form" novalidate><div class="field"><label for="ev-title">Title</label><input id="ev-title" required maxlength="80" placeholder="e.g. Client call" value="' + esc(x.title) + '"></div><div class="field-row"><div class="field"><label for="ev-date">Date</label><input id="ev-date" type="date" required value="' + x.date + '"></div><div class="field"><label for="ev-time">Time</label><input id="ev-time" type="time" required value="' + (x.time || "10:00") + '"></div></div><div class="btn-row" style="justify-content:flex-end">' + (existing ? '<button type="button" class="btn btn--danger" id="ev-del" style="margin-right:auto">' + ic("trash") + " Delete</button>" : "") + '<button type="button" class="btn" data-act="close-modal">Cancel</button><button class="btn btn--primary" type="submit">' + (existing ? "Save" : "Add event") + "</button></div></form>");
+    if (existing) $("#ev-del").addEventListener("click", function () { S.events = S.events.filter(function (v) { return v.id !== existing.id; }); log("calendar", "Event deleted: " + existing.title); save(); closeModal(); render(); toast("Event deleted"); });
     $("#ev-form").addEventListener("submit", function (e) {
-      e.preventDefault(); var t = $("#ev-title").value.trim(); if (!t) { $("#ev-title").focus(); return; }
-      var ev = { id: uid(), title: t, date: $("#ev-date").value, time: $("#ev-time").value, kind: "internal", status: "confirmed" };
-      var c = findConflict(ev, ev.id); S.events.push(ev); log("calendar", "Event added: " + t); save(); closeModal(); render(); toast("Event added" + (c ? " — clashes with “" + c.title + "”" : ""));
+      e.preventDefault(); var t = $("#ev-title").value.trim(); if (!t || !$("#ev-date").value) { $("#ev-title").focus(); return; }
+      var ev = existing || { id: uid(), kind: "internal" };
+      ev.title = t; ev.date = $("#ev-date").value; ev.time = $("#ev-time").value || "10:00"; ev.status = "confirmed";
+      if (!existing) S.events.push(ev);
+      var c = findConflict(ev, ev.id); log("calendar", (existing ? "Event updated: " : "Event added: ") + t); save(); closeModal(); render(); toast((existing ? "Event updated" : "Event added") + (c ? " — clashes with “" + c.title + "”" : ""));
     });
   }
 
@@ -773,25 +919,204 @@
   function openMenu() { $("#side").classList.add("is-open"); $("#scrim").hidden = false; $("#menu-btn").setAttribute("aria-expanded", "true"); }
   function closeMenu() { var s = $("#side"); if (!s) return; s.classList.remove("is-open"); $("#scrim").hidden = true; $("#menu-btn").setAttribute("aria-expanded", "false"); }
 
+
+  /* =========================================================
+     LIVE BEHAVIOUR: notifications, live arrivals, typing drafts
+     ========================================================= */
+  function notify(text, view, emailId, kind) {
+    S.notifications.unshift({ id: uid(), ts: Date.now(), text: text, view: view || "overview", emailId: emailId || null, kind: kind || "info", read: false });
+    S.notifications = S.notifications.slice(0, 30); save(); renderBell();
+  }
+  function renderBell() {
+    var n = S.notifications.filter(function (x) { return !x.read; }).length, b = $("#bell-n");
+    if (b) { b.textContent = n > 9 ? "9+" : n; b.hidden = !n; }
+    var btn = $("#bell-btn"); if (btn) btn.setAttribute("aria-label", "Notifications" + (n ? ", " + n + " unread" : ""));
+    if (ui.notifOpen) renderBellPanel();
+  }
+  var NIC = { alert: ["alert", "tone-red"], mail: ["mail", "tone-blue"], task: ["clock", "tone-amber"], followup: ["repeat", "tone-navy"], calendar: ["cal", "tone-purple"], info: ["info", "tone-purple"] };
+  function renderBellPanel() {
+    var p = $("#bell-panel"); if (!p) return;
+    var items = S.notifications.slice(0, 12);
+    p.innerHTML = '<div class="np-head"><b>Notifications</b>' + (items.some(function (x) { return !x.read; }) ? '<button class="btn btn--ghost btn--xs" data-act="notif-readall">Mark all read</button>' : "") + "</div>" +
+      (items.length ? '<ul class="list">' + items.map(function (n) {
+        var k = NIC[n.kind] || NIC.info;
+        return '<li><button class="np-item' + (n.read ? "" : " unread") + '" data-act="notif-open" data-id="' + n.id + '"><span class="a-ico ' + k[1] + '">' + ic(k[0]) + "</span><span>" + esc(n.text) + "<time>" + ago(n.ts) + "</time></span></button></li>";
+      }).join("") + "</ul>" : empty("bell", "No notifications yet."));
+  }
+  function toggleBell(force) {
+    ui.notifOpen = typeof force === "boolean" ? force : !ui.notifOpen;
+    var p = $("#bell-panel"), b = $("#bell-btn"); if (!p) return;
+    p.hidden = !ui.notifOpen; b.setAttribute("aria-expanded", ui.notifOpen);
+    if (ui.notifOpen) renderBellPanel();
+  }
+  function checkDueNotifications() {
+    var today = iso(new Date()); S.notified = S.notified || {};
+    if (S.notified["due" + today]) return;
+    S.notified["due" + today] = 1;
+    var due = openTasks().filter(function (t) { return t.due === today; }).length, over = openTasks().filter(function (t) { return t.due && t.due < today; }).length;
+    var fus = pendingFollowups().filter(function (f) { return f.due <= today; }).length;
+    if (fus) notify(fus + " follow-up" + (fus > 1 ? "s are" : " is") + " due — check who hasn't replied", "followups", null, "followup");
+    if (over) notify(over + " task" + (over > 1 ? "s are" : " is") + " overdue", "tasks", null, "task");
+    if (due) notify(due + " task" + (due > 1 ? "s are" : " is") + " due today", "tasks", null, "task");
+  }
+
+  var live = { timer: null, count: 0, nextAt: 0, tick: null };
+  function scheduleLive(first) {
+    clearTimeout(live.timer);
+    if (!S.liveMode || live.count >= (CFG.liveArrivalMax || 10)) { updateLiveBtn(); return; }
+    var r = CFG.liveArrivalSeconds || [40, 75];
+    var sec = first ? 18 + Math.random() * 10 : r[0] + Math.random() * (r[1] - r[0]);
+    live.nextAt = Date.now() + sec * 1000;
+    live.timer = setTimeout(function () {
+      if (document.hidden || tour.i >= 0 || !$("#modal").hidden) { scheduleLive(); return; }
+      live.count++; simulate(true); scheduleLive();
+    }, sec * 1000);
+    updateLiveBtn();
+  }
+  function updateLiveBtn() {
+    var b = $("#live-btn"); if (!b) return;
+    var on = S.liveMode && live.count < (CFG.liveArrivalMax || 10);
+    b.setAttribute("aria-pressed", S.liveMode ? "true" : "false");
+    b.classList.toggle("is-live", !!S.liveMode);
+    var lbl = $("#live-label"); if (lbl) lbl.textContent = S.liveMode ? "Live" : "Paused";
+    var secs = Math.max(0, Math.round((live.nextAt - Date.now()) / 1000));
+    b.title = S.liveMode ? (on ? "Live mode on — next email in about " + secs + " s. Click to pause." : "Live mode on — sample emails for this visit have all arrived.") : "Live mode paused — click to receive new emails automatically.";
+  }
+
+  var typing = null;
+  function typeInto(ta, text) {
+    finishTyping();
+    if (reduced() || text.length > 3000) { ta.value = text; return; }
+    var i = 0, step = Math.max(2, Math.round(text.length / 110));
+    ta.value = ""; ta.classList.add("is-typing");
+    typing = { ta: ta, text: text, timer: setInterval(function () {
+      i += step; ta.value = text.slice(0, i); ta.scrollTop = ta.scrollHeight;
+      if (i >= text.length) finishTyping();
+    }, 16) };
+  }
+  function finishTyping() { if (!typing) return; clearInterval(typing.timer); typing.ta.value = typing.text; typing.ta.classList.remove("is-typing"); typing = null; }
+
+  /* ---------- Drag & drop (tasks board, calendar) ---------- */
+  function bindDnD() {
+    $$("[data-drag-task]").forEach(function (c) {
+      c.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/plain", "task:" + c.getAttribute("data-drag-task")); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); });
+      c.addEventListener("dragend", function () { c.classList.remove("dragging"); });
+    });
+    $$("[data-drag-ev]").forEach(function (c) {
+      c.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/plain", "ev:" + c.getAttribute("data-drag-ev")); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); });
+      c.addEventListener("dragend", function () { c.classList.remove("dragging"); });
+    });
+    $$("[data-drop-status], [data-drop-date]").forEach(function (z) {
+      z.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; z.classList.add("drop-over"); });
+      z.addEventListener("dragleave", function (e) { if (!z.contains(e.relatedTarget)) z.classList.remove("drop-over"); });
+      z.addEventListener("drop", function (e) {
+        e.preventDefault(); z.classList.remove("drop-over");
+        var d = (e.dataTransfer.getData("text/plain") || "").split(":");
+        if (d[0] === "task" && z.hasAttribute("data-drop-status")) setTaskStatus(d[1], z.getAttribute("data-drop-status"));
+        if (d[0] === "ev" && z.hasAttribute("data-drop-date")) moveEvent(d[1], z.getAttribute("data-drop-date"));
+      });
+    });
+  }
+  function taskStatus(t) { return t.done ? "done" : t.status === "doing" ? "doing" : "todo"; }
+  function setTaskStatus(id, st) {
+    var t = S.tasks.filter(function (x) { return x.id === id; })[0]; if (!t || taskStatus(t) === st) return;
+    t.status = st; t.done = st === "done"; t.doneTs = t.done ? Date.now() : null;
+    log("task", (st === "done" ? "Task completed: " : st === "doing" ? "Task started: " : "Task moved to To do: ") + trunc(t.text, 60));
+    save(); render(); toast(st === "done" ? "Task completed" : st === "doing" ? "Moved to In progress" : "Moved to To do");
+  }
+  function moveEvent(id, date) {
+    var ev = evById(id); if (!ev || ev.date === date) return;
+    ev.date = date; var c = findConflict(ev, ev.id);
+    log("calendar", "Event moved: " + ev.title + " → " + fmt(date)); save(); render();
+    toast("Moved to " + fmt(date) + (c ? " — clashes with “" + c.title + "”" : ""));
+  }
+
+  /* =========================================================
+     GUIDED TOUR
+     ========================================================= */
+  var TOUR = [
+    { view: "overview", sel: ".kpis", title: "Your day at a glance", text: "Six live counters: emails processed, important emails, pending tasks, deadlines, follow-ups and completed tasks. Click any card to jump straight there." },
+    { view: "overview", sel: "#attention", title: "What needs your attention", text: "The assistant ranks emails by urgency and gives you one clear next step for each." },
+    { view: "inbox", sel: ".chips", title: "Smart Inbox filters", text: "Filter by Urgent, Important, Requires response, Meetings or General information — or search everything.", before: function () { ui.selected = null; ui.filter = "all"; ui.query = ""; } },
+    { view: "inbox", sel: ".mail-list .mail", title: "A summary on every email", text: "Each email shows an AI summary, its priority and category, and the recommended action. Click any email to open the full analysis." },
+    { view: "inbox", sel: ".analysis", title: "The full analysis", text: "Intent, priority with reasons, names, amounts and dates pulled out of the text, deadlines and tasks. Use the pencil icons to correct anything.", before: function () { var v = visibleEmails(); ui.selected = v.length ? v[0].id : null; } },
+    { view: "inbox", sel: ".ablock--action", title: "One recommended action", text: "The single best next step, with a button that does it — reply, add to calendar, create a task or archive." },
+    { view: "inbox", sel: "#draft-block", title: "Replies wait for your approval", text: "Switch the tone, regenerate, edit, then approve. Nothing is ever sent without a human decision." },
+    { view: "analyze", sel: "#analyze-form", title: "Try it with your own email", text: "Write or paste a fictional email, or pick an example. Choose “Live AI” to have a real AI model analyse it through Make.com.", before: function () { ui.selected = null; } },
+    { view: "tasks", sel: "#tasks-card", title: "Tasks & deadlines", text: "Every action item lands here automatically. Switch to Board view and drag tasks between To do, In progress and Done." },
+    { view: "calendar", sel: ".week", title: "Calendar suggestions", text: "Meetings found in email appear dashed — accept or dismiss them. Drag any event to another day, or click it to edit." },
+    { view: "briefing", sel: ".brief__hero", title: "Your daily briefing", text: "A ready-made summary of priorities, deadlines and meetings. Copy it in one click." },
+    { view: "briefing", sel: "#live-btn", title: "Live mode", text: "New emails arrive and get analysed on their own while live mode is on. The bell collects notifications. You're ready — explore freely!" }
+  ];
+  var tour = { i: -1 };
+  function startTour() { closeMenu(); toggleBell(false); tour.i = 0; document.body.classList.add("touring"); showStep(); }
+  function endTour(done) {
+    tour.i = -1; document.body.classList.remove("touring");
+    ["tour-block", "tour-spot", "tour-pop"].forEach(function (id) { var el = document.getElementById(id); if (el) el.remove(); });
+    try { localStorage.setItem("eaTourDone", "1"); } catch (e) { /* */ }
+    if (done) toast("Tour complete — the demo is yours to explore.");
+    window.removeEventListener("resize", placeStep); window.removeEventListener("scroll", onTourScroll, true);
+  }
+  function showStep() {
+    var st = TOUR[tour.i]; if (!st) return endTour(true);
+    if (st.before) st.before();
+    if (ui.view !== st.view) { ui.view = st.view; try { history.replaceState(null, "", "#" + st.view); } catch (e) { /* */ } }
+    render();
+    if (!$("#tour-block")) {
+      document.body.insertAdjacentHTML("beforeend", '<div id="tour-block"></div><div id="tour-spot" aria-hidden="true"></div><div id="tour-pop" role="dialog" aria-modal="true" aria-labelledby="tour-title"></div>');
+      window.addEventListener("resize", placeStep); window.addEventListener("scroll", onTourScroll, true);
+    }
+    var pop = $("#tour-pop");
+    pop.innerHTML = '<p class="tour-count">Step ' + (tour.i + 1) + " of " + TOUR.length + '</p><h2 id="tour-title">' + esc(st.title) + "</h2><p>" + esc(st.text) + '</p><div class="tour-dots" aria-hidden="true">' + TOUR.map(function (_, i) { return '<span class="' + (i === tour.i ? "on" : "") + '"></span>'; }).join("") + '</div><div class="btn-row"><button class="btn btn--ghost btn--sm" data-act="tour-skip">Skip tour</button><span style="flex:1"></span>' +
+      (tour.i ? '<button class="btn btn--sm" data-act="tour-prev">Back</button>' : "") + '<button class="btn btn--primary btn--sm" data-act="tour-next">' + (tour.i === TOUR.length - 1 ? "Finish" : "Next") + "</button></div>";
+    var el = $(st.sel);
+    if (el) el.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
+    setTimeout(function () { placeStep(); var n = $("#tour-pop [data-act=tour-next]"); if (n) n.focus({ preventScroll: true }); }, reduced() ? 10 : 380);
+    setTimeout(placeStep, 750); setTimeout(placeStep, 1200);
+  }
+  var tourRaf = 0;
+  function onTourScroll() { cancelAnimationFrame(tourRaf); tourRaf = requestAnimationFrame(placeStep); }
+  function placeStep() {
+    if (tour.i < 0) return;
+    var st = TOUR[tour.i], el = $(st.sel), spot = $("#tour-spot"), pop = $("#tour-pop"); if (!spot || !pop) return;
+    var vw = window.innerWidth, vh = window.innerHeight, pw = Math.min(360, vw - 24);
+    pop.style.width = pw + "px";
+    if (!el || !el.getClientRects().length) { spot.style.opacity = "0"; pop.style.left = (vw - pw) / 2 + "px"; pop.style.top = Math.max(16, vh / 2 - 120) + "px"; return; }
+    var r = el.getBoundingClientRect(), pad = 8;
+    var top = Math.max(4, r.top - pad), left = Math.max(4, r.left - pad), w = Math.min(vw - 8, r.width + pad * 2), h = Math.min(vh - 8, r.height + pad * 2);
+    spot.style.opacity = "1"; spot.style.top = top + "px"; spot.style.left = left + "px"; spot.style.width = w + "px"; spot.style.height = h + "px";
+    var ph = pop.offsetHeight || 200, py;
+    if (vw < 640) { pop.style.left = "12px"; pop.style.top = (vh - ph - 12) + "px"; return; }
+    if (top + h + 12 + ph < vh) py = top + h + 12; else if (top - ph - 12 > 0) py = top - ph - 12; else py = Math.max(12, vh - ph - 12);
+    var px = Math.min(Math.max(12, left), vw - pw - 12);
+    pop.style.top = py + "px"; pop.style.left = px + "px";
+  }
+
   /* ---------------- Boot ---------------- */
   function boot() {
     S = load(); if (!S) seed();
     document.addEventListener("click", onClick);
     document.addEventListener("change", function (e) { if (e.target.matches('input[type=checkbox][data-act="toggle-task"]')) { /* handled in click */ } });
+    document.addEventListener("click", function (e) { if (ui.notifOpen && !e.target.closest("#bell-panel, #bell-btn")) toggleBell(false); });
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { if (!$("#modal").hidden) closeModal(); else closeMenu(); }
+      if (tour.i >= 0) { if (e.key === "Escape") endTour(false); if (e.key === "ArrowRight") { tour.i++; tour.i >= TOUR.length ? endTour(true) : showStep(); } if (e.key === "ArrowLeft" && tour.i > 0) { tour.i--; showStep(); } return; }
+      if (e.key === "Escape") { if (!$("#modal").hidden) closeModal(); else if (ui.notifOpen) toggleBell(false); else closeMenu(); }
       if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { var s = $("#global-q"); if (s && s.offsetParent) { e.preventDefault(); s.focus(); } }
     });
     $("#modal").addEventListener("click", function (e) { if (e.target.id === "modal") closeModal(); });
     $("#scrim").addEventListener("click", closeMenu);
     $("#global-q").addEventListener("input", function (e) { ui.query = e.target.value; ui.selected = null; if (ui.view !== "inbox") go("inbox"); else render(); });
-    $("#btn-sim").addEventListener("click", simulate);
+    $("#btn-sim").addEventListener("click", function () { simulate(false); });
     $("#note-close").addEventListener("click", function () { $("#demo-note").hidden = true; try { sessionStorage.setItem("eaNote", "1"); } catch (e) { /* */ } });
     try { if (sessionStorage.getItem("eaNote")) $("#demo-note").hidden = true; } catch (e) { /* */ }
     if (CFG.websiteUrl) $("#back-site").href = CFG.websiteUrl;
     if (CFG.contactUrl) $("#cta-book").href = CFG.contactUrl;
     window.addEventListener("hashchange", onHash);
     onHash();
+    checkDueNotifications(); renderBell(); scheduleLive(true);
+    setInterval(updateLiveBtn, 5000);
+    var noTour = /[?&]notour\b/.test(location.search);
+    try { if (!noTour && !localStorage.getItem("eaTourDone")) setTimeout(function () { if (tour.i < 0 && $("#modal").hidden) startTour(); }, 900); } catch (e) { /* */ }
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

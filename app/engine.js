@@ -96,7 +96,9 @@
   function trunc(s, n) { return s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s; }
   function cleanSubject(s) { return String(s || "").replace(/^\s*((re|fw|fwd|urgent|important|reminder|action required|invitation|enquiry|inquiry|question|final reminder)\s*[:\-–]\s*)+/i, "").trim(); }
   function firstName(from) {
-    var n = String(from || "").replace(/<.*$/, "").trim().split(/\s+/)[0] || "";
+    var parts = String(from || "").replace(/<.*$/, "").trim().split(/\s+/);
+    if (/^(mr|mrs|ms|dr|prof|eng|rev)\.?$/i.test(parts[0] || "") && parts[1]) parts.shift();
+    var n = parts[0] || "";
     return /^(accounts|billing|support|info|team|admin|noreply|no-reply|hello|sales|newsletter|the|registrar|notifications?)$/i.test(n) ? "" : cap(n);
   }
   function swap(s) {
@@ -108,9 +110,9 @@
   var CATEGORIES = ["Client request", "New lead", "Meeting", "Finance", "Issue / complaint", "Internal", "General information"];
   var CAT_RULES = {
     "New lead": [/\b(enquir|inquir)\w*/g, 3, /\binterested in\b/g, 3, /\bdo you (offer|provide|do|handle|have)\b/g, 3, /\bhow much\b/g, 3,
-      /\b(pricing|prices?|rates|costs?|fees?|quotation|packages?)\b/g, 1.2, /\byour (services|company|business|work)\b/g, 2, /\b(found you|came across|referred|recommended you)\b/g, 2.5],
-    "Meeting": [/\b(meet|meeting|call|catch[- ]up|appointment|zoom|google meet|teams|reschedul\w*|availability|available|slot|invit\w*|agenda|summit|workshop|webinar|conference|calendar)\b/g, 1.5],
-    "Finance": [/\b(invoice|inv[-\s]?\d+|payment|remittance|receipt|overdue|balance|billing|refund|m-?pesa|paybill|renew\w*|subscription|expir\w*|due date|paid)\b/g, 2, /\b(kes|ksh|usd|\$)\s?\d/g, 1.5],
+      /\b(pricing|prices?|rates|costs?|fees?|quotation|packages?)\b/g, 1.2, /\byour (services|company|business|work)\b/g, 2, /\b(found you|came across|referred|recommended you)\b/g, 2.5, /\b(do you work with|what would (it|this|a setup|that)[^.?]{0,40}cost|send (us |me )?a quote|quote for)\b/g, 3],
+    "Meeting": [/\b(meet|meeting|call|catch[- ]up|appointment|zoom|google meet|teams|reschedul\w*|availability|are you available|available (on|for|to meet)|slot|invit\w*|agenda|summit|workshop|webinar|conference|calendar)\b/g, 1.5],
+    "Finance": [/\b(invoice|inv[-\s]?\d+|payment|remittance|receipt|overdue|balance|billing|refund|m-?pesa|paybill|renew\w*|subscription|expir\w*|due date|paid|statement|amount due|bill)\b/g, 2, /\b(kes|ksh|usd|\$)\s?\d/g, 1.5],
     "Issue / complaint": [/\b(problem|issue|not working|stopped|broken|error|complain\w*|disappoint\w*|frustrat\w*|unhappy|fail(ed|ing|ure)?|bug|wrong|delay(ed)?|missing|down)\b/g, 2, /\b(has not|hasn['’]t|have not|haven['’]t|nothing is|not (sent|arriving|received|loading|showing))\b/g, 2.5],
     "Client request": [/\b(revised|revise|update|send|share|prepare|draft|review|approve|deliver\w*|proposal|document|report|deck|quote|deadline|comments|feedback|sign off)\b/g, 1.1],
     "Internal": [/\b(team|staff|colleagues|everyone|all hands|internal|weekly update|standup|stand-up|leave|office)\b/g, 1.2],
@@ -133,13 +135,13 @@
     { id: "schedule", label: "Wants to schedule a meeting", re: /\b(meet|meeting|call|catch[- ]up|available|availability|slot|free on|appointment)\b/i, w: 1.4 },
     { id: "reschedule", label: "Wants to reschedule a meeting", re: /\b(reschedul\w*|move (our|the|it)\b[^.?!]{0,30}\b(meeting|call)|postpone|push (it|the meeting)|change the time|something has come up)/i, w: 4.5 },
     { id: "confirm", label: "Confirms an arrangement", re: /\b(confirm(ing|ation)?|see you (on|at)|looking forward to (meeting|seeing))\b/i, w: 1.5 },
-    { id: "payment", label: "Requests payment", re: /\b(invoice (no|number|#)|inv-?\d+|[A-Z]{2,4}-\d{3,}|payment (is )?due|overdue|amount due|settle|remittance|pay by|is due)\b/i, w: 2.5 },
+    { id: "payment", label: "Requests payment", re: /\b(invoice (no|number|#)|inv-?\d+|[A-Z]{2,4}-\d{3,}|payment (is )?due|overdue|amount due|settle|remittance|pay by|is due|statement)\b/i, w: 2.5 },
     { id: "renewal", label: "Service renewal or expiry notice", re: /\b(renew\w*|expir\w*|subscription)\b/i, w: 2.5 },
     { id: "receipt", label: "Confirms a payment received", re: /\b(payment received|receipt|we have received|has been received|paid in full)\b/i, w: 2.6 },
     { id: "problem", label: "Reports a problem", re: /\b(problem|issue|not working|stopped|broken|error|fail\w*|down|complain\w*|delay\w*|disappoint\w*|(has|have)n['’]?t been|has not|nothing is|still hasn)/i, w: 2.4 },
     { id: "deliverable", label: "Requests a deliverable or action", re: /\b(could you|can you|please|kindly|need you to|we need|send|share|review|prepare|revise|update)\b/i, w: 1.3 },
     { id: "followup", label: "Follows up on an earlier conversation", re: /\b(following up|follow up|re:|as discussed|last week|previous email|reminder|checking in|any update)\b/i, w: 1.6 },
-    { id: "invite", label: "Invitation to an event", re: /\b(invit\w*|summit|conference|workshop|webinar|event|rsvp|register)\b/i, w: 2 },
+    { id: "invite", label: "Invitation to an event", re: /\b(invit\w*|summit|conference|workshop|webinar|panel|rsvp for)\b/i, w: 2 },
     { id: "fyi", label: "Shares information (no action needed)", re: /\b(fyi|for your information|update|newsletter|roundup|digest|no action|announcement)\b/i, w: 1.2 },
     { id: "marketing", label: "Marketing / newsletter", re: /\b(unsubscribe|newsletter|% off|discount|promo\w*|view in browser|this week in)\b/i, w: 3 }
   ];
