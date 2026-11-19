@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /thank-you.html
+
+Sitemap: https://yomie-commits.github.io/ai-automation-services/sitemap.xml
