@@ -1,0 +1,797 @@
+/* =========================================================
+   AI Executive Assistant — interactive demonstration app
+   ========================================================= */
+(function () {
+  "use strict";
+  var E = window.DemoEngine, CFG = window.APP_CONFIG || {};
+  var esc = E.esc, fmt = E.fmt, fmtTime = E.fmtTime, rel = E.rel, iso = E.iso;
+  var KEY = "eaDemoApp.v1";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  /* ---------------- Icons ---------------- */
+  var IC = {
+    home: '<path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
+    spark: '<path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/><path d="M19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7z"/>',
+    check: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+    repeat: '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+    cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    cog: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7.3 19.6l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.8H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.4 7.3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.8-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.8H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.1z"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+    flag: '<path d="M4 22V4m0 0h13l-2 4 2 4H4"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    tag: '<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>',
+    pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    send: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+    archive: '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    x: '<path d="M18 6L6 18M6 6l12 12"/>',
+    copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    menu: '<path d="M3 6h18M3 12h18M3 18h18"/>',
+    back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    bolt: '<path d="M13 2L3 14h9l-1 8 10-12h-9z"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    refresh: '<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
+    trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+    code: '<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>',
+    ext: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>',
+    chev: '<path d="M9 18l6-6-6-6"/>', chevL: '<path d="M15 18l-9-6 9-6"/>'
+  };
+  function ic(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + "</svg>"; }
+
+  /* ---------------- State ---------------- */
+  var S, ui = { view: "overview", filter: "all", selected: null, query: "", taskTab: "open", weekOffset: 0, analyzeResult: null, analyzeInput: null };
+  var uid = function () { return Math.random().toString(36).slice(2, 9); };
+  var DEFAULT_SETTINGS = { yourName: "Naomi Mwangi", businessName: "AI Automation Services", tone: "Formal",
+    vipSenders: "Horizon Ventures, Bloom Interiors", urgentKeywords: "urgent, asap, immediately, deadline, overdue, critical, final reminder", autoProcess: true };
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (d && d.v === 1) return d; } } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function seed() {
+    var now = Date.now();
+    S = { v: 1, settings: Object.assign({}, DEFAULT_SETTINGS), emails: [], tasks: [], events: [], followups: [], activity: [], incomingIdx: 0, created: now };
+    window.DEMO_EMAILS.forEach(function (d, i) {
+      var em = { id: "e" + (i + 1), from: d.from, email: d.email, org: d.org, subject: d.subject, body: d.body, ts: now - d.ago * 60000, read: d.ago > 1000, status: "new", draft: null, tone: null };
+      em.analysis = E.analyze(em, S.settings);
+      if (em.analysis.category === "General information" || em.analysis.intentId === "receipt") em.read = true;
+      S.emails.push(em);
+      addTasksFrom(em, true);
+      if (em.analysis.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, em.analysis.event));
+    });
+    var today = E.addDays(new Date(), 0);
+    window.DEMO_EVENTS.forEach(function (ev) { S.events.push({ id: uid(), title: ev.title, date: iso(ev.day === 0 ? today : E.bizDays(today, ev.day)), time: ev.time, kind: ev.kind, status: "confirmed" }); });
+    window.DEMO_FOLLOWUPS.forEach(function (f) { S.followups.push({ id: uid(), contact: f.contact, org: f.org, topic: f.topic, sentTs: now - f.sentAgo * 864e5, due: iso(E.addDays(today, f.due)), status: "waiting" }); });
+    window.DEMO_DONE_TASKS.forEach(function (t) { S.tasks.push({ id: uid(), text: t.text, due: iso(E.addDays(today, -t.daysAgo)), done: true, doneTs: now - t.daysAgo * 864e5 - 3600e3, priority: "Normal", createdTs: now - (t.daysAgo + 2) * 864e5 }); });
+    S.activity = [];
+    log("sent", "Reply approved and sent to Bloom Interiors — onboarding guide", now - 26 * 3600e3);
+    log("task", "Task completed: Test reminder workflow for Kariuki Dental", now - 20 * 3600e3);
+    log("process", "Morning run: 7 new emails analysed and logged", now - 9 * 3600e3);
+    log("calendar", "Meeting confirmed: Weekly pipeline review", now - 6 * 3600e3);
+    log("process", "Analysed: “" + S.emails[2].subject + "” → " + S.emails[2].analysis.priority, now - 94 * 60000);
+    log("process", "Analysed: “" + S.emails[1].subject + "” → " + S.emails[1].analysis.priority, now - 51 * 60000);
+    log("alert", "Urgent email flagged from Peter Kariuki (Kariuki Dental Clinic)", now - 17 * 60000);
+    save();
+  }
+
+  function addTasksFrom(em, silent) {
+    var a = em.analysis; if (!a) return 0; var n = 0;
+    a.tasks.forEach(function (t) {
+      if (S.tasks.some(function (x) { return x.emailId === em.id && x.text === t.text; })) return;
+      S.tasks.push({ id: uid(), text: t.text, due: t.due, done: false, priority: a.priority, emailId: em.id, createdTs: Date.now() }); n++;
+    });
+    if (n && !silent) log("task", n + " task" + (n > 1 ? "s" : "") + " created from “" + trunc(em.subject, 50) + "”");
+    return n;
+  }
+  function log(type, text, ts) { S.activity.unshift({ ts: ts || Date.now(), type: type, text: text }); S.activity.sort(function (a, b) { return b.ts - a.ts; }); S.activity = S.activity.slice(0, 60); }
+  function trunc(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+  function email(id) { return S.emails.filter(function (e) { return e.id === id; })[0]; }
+  function ago(ts) {
+    var m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return "just now"; if (m < 60) return m + " min ago"; var h = Math.round(m / 60); if (h < 24) return h + " h ago";
+    var d = Math.round(h / 24); return d === 1 ? "yesterday" : d + " days ago";
+  }
+  function when(ts) {
+    var d = new Date(ts), n = new Date();
+    if (d.toDateString() === n.toDateString()) return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    var y = new Date(); y.setDate(y.getDate() - 1); if (d.toDateString() === y.toDateString()) return "Yesterday";
+    return fmt(iso(d));
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  var COLORS = ["#6c5ce7", "#3d7bf0", "#149a6c", "#d9821a", "#c2458d", "#0f1e45", "#2a9bb5", "#7a5c3e"];
+  function avColor(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
+  function initials(n) { return String(n).replace(/<.*$/, "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase(); }
+  function pClass(p) { return "p-" + String(p || "low").toLowerCase(); }
+  function pBadge(p) { return '<span class="badge ' + pClass(p) + '">' + esc(p) + "</span>"; }
+  function catBadge(c) { return '<span class="badge b-cat">' + esc(c) + "</span>"; }
+  var PRANK = { Urgent: 0, Important: 1, Normal: 2, Low: 3 };
+
+  /* ---------------- Analysis provider ---------------- */
+  function runAnalysis(em) {
+    if (!CFG.aiEndpoint) return Promise.resolve(E.analyze(em, S.settings));
+    return fetch(CFG.aiEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: em.from, email: em.email, subject: em.subject, body: em.body }) })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (ai) { var base = E.analyze(em, S.settings); var out = Object.assign(base, ai || {}); out.engine = "ai"; return out; })
+      .catch(function () { var a = E.analyze(em, S.settings); a.engineNote = "AI endpoint unavailable — demonstration engine used"; return a; });
+  }
+  function engineLabel() { return CFG.aiEndpoint ? (CFG.aiEndpointLabel || "Live AI endpoint") : "Demonstration engine"; }
+
+  /* ---------------- Derived data ---------------- */
+  function active() { return S.emails.filter(function (e) { return e.status !== "archived"; }); }
+  function processed() { return S.emails.filter(function (e) { return e.analysis; }); }
+  function needsReply(e) { return e.analysis && e.analysis.requiresResponse && e.status !== "replied" && e.status !== "archived"; }
+  function isImportant(e) { return e.analysis && (e.analysis.priority === "Urgent" || e.analysis.priority === "Important"); }
+  var FILTERS = [
+    { id: "all", label: "All emails", test: function () { return true; } },
+    { id: "urgent", label: "Urgent", test: function (e) { return e.analysis && e.analysis.priority === "Urgent"; } },
+    { id: "important", label: "Important", test: function (e) { return e.analysis && e.analysis.priority === "Important"; } },
+    { id: "response", label: "Requires response", test: needsReply },
+    { id: "meetings", label: "Meetings", test: function (e) { return e.analysis && (e.analysis.category === "Meeting" || !!(e.analysis.event && !e.analysis.event.proposed)); } },
+    { id: "info", label: "General information", test: function (e) { return e.analysis && (e.analysis.category === "General information" || e.analysis.category === "Internal" || e.analysis.intentId === "receipt"); } },
+    { id: "unprocessed", label: "Not analysed", test: function (e) { return !e.analysis; }, hideIfEmpty: true }
+  ];
+  function openTasks() { return S.tasks.filter(function (t) { return !t.done; }); }
+  function upcomingDeadlines() {
+    var today = iso(new Date()), lim = iso(E.addDays(new Date(), 7));
+    return openTasks().filter(function (t) { return t.due && t.due <= lim; }).sort(function (a, b) { return a.due < b.due ? -1 : a.due > b.due ? 1 : 0; });
+  }
+  function pendingFollowups() { return S.followups.filter(function (f) { return f.status === "waiting"; }); }
+
+  /* ---------------- Shell ---------------- */
+  var VIEWS = {
+    overview: { title: "Overview", sub: "Your inbox, tasks and schedule at a glance", icon: "home" },
+    inbox: { title: "Smart Inbox", sub: "Every email summarised, prioritised and ready for action", icon: "inbox" },
+    analyze: { title: "Analyse an email", sub: "Paste or write a fictional email and watch the assistant work", icon: "spark" },
+    tasks: { title: "Tasks & deadlines", sub: "Action items extracted from your email", icon: "check" },
+    followups: { title: "Follow-ups", sub: "Conversations waiting on you — or on someone else", icon: "repeat" },
+    calendar: { title: "Calendar", sub: "Meetings and suggestions from your inbox", icon: "cal" },
+    briefing: { title: "Daily briefing", sub: "What needs your attention today", icon: "sun" },
+    settings: { title: "Assistant settings", sub: "Tune how the assistant prioritises and writes", icon: "cog" }
+  };
+  function renderNav() {
+    var counts = {
+      inbox: active().filter(function (e) { return !e.read; }).length,
+      tasks: openTasks().length,
+      followups: pendingFollowups().length + S.emails.filter(needsReply).length,
+      calendar: S.events.filter(function (e) { return e.status === "suggested"; }).length
+    };
+    var groups = [["Workspace", ["overview", "inbox", "analyze"]], ["Organise", ["tasks", "followups", "calendar", "briefing"]], ["", ["settings"]]];
+    $("#nav").innerHTML = groups.map(function (g) {
+      return (g[0] ? '<li class="nav__label">' + g[0] + "</li>" : '<li class="nav__label" aria-hidden="true"></li>') + g[1].map(function (k) {
+        var c = counts[k] ? '<span class="count" aria-label="' + counts[k] + ' items">' + counts[k] + "</span>" : "";
+        return '<li><a href="#' + k + '"' + (ui.view === k ? ' aria-current="page"' : "") + ">" + ic(VIEWS[k].icon) + "<span>" + VIEWS[k].title + "</span>" + c + "</a></li>";
+      }).join("");
+    }).join("");
+    $("#engine-name").textContent = engineLabel();
+    $("#engine-dot").className = "dot" + (CFG.aiEndpoint ? " dot--live" : "");
+    $("#engine-desc").textContent = CFG.aiEndpoint ? "Emails are analysed by your connected AI endpoint." : "Rule-based analysis running in your browser. No AI service is called and no data leaves this page.";
+    $("#avatar").textContent = initials(S.settings.yourName || "You");
+  }
+  function render() {
+    var v = VIEWS[ui.view] || VIEWS.overview;
+    $("#page-title").textContent = v.title; $("#page-sub").textContent = v.sub;
+    document.title = v.title + " — AI Executive Assistant (Demo)";
+    renderNav();
+    var html = ({ overview: vOverview, inbox: vInbox, analyze: vAnalyze, tasks: vTasks, followups: vFollowups, calendar: vCalendar, briefing: vBriefing, settings: vSettings }[ui.view] || vOverview)();
+    $("#view").innerHTML = html;
+    afterRender();
+  }
+  function go(view) { if (location.hash !== "#" + view) location.hash = view; else { ui.view = view; render(); } }
+  function onHash() {
+    var h = (location.hash || "#overview").slice(1);
+    if (!VIEWS[h]) h = "overview";
+    ui.view = h; closeMenu(); render(); window.scrollTo(0, 0);
+    var v = $("#view"); if (v) v.focus({ preventScroll: true });
+  }
+
+  /* ---------------- Overview ---------------- */
+  function vOverview() {
+    var hr = new Date().getHours(), greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+    var name = String(S.settings.yourName || "").split(" ")[0];
+    var p = processed(), imp = active().filter(isImportant).filter(function (e) { return e.status !== "replied"; });
+    var dl = upcomingDeadlines(), done = S.tasks.filter(function (t) { return t.done; });
+    var overdue = openTasks().filter(function (t) { return t.due && t.due < iso(new Date()); }).length;
+    var kpis = [
+      ["mail", "tone-purple", p.length, "Emails processed", "inbox", S.emails.length - p.length ? (S.emails.length - p.length) + " pending" : "all analysed"],
+      ["flag", "tone-red", imp.length, "Important emails", "inbox:important", active().filter(function (e) { return e.analysis && e.analysis.priority === "Urgent" && e.status !== "replied"; }).length + " urgent"],
+      ["list", "tone-blue", openTasks().length, "Pending tasks", "tasks", overdue ? overdue + " overdue" : ""],
+      ["clock", "tone-amber", dl.length, "Upcoming deadlines", "tasks", "next 7 days"],
+      ["repeat", "tone-navy", pendingFollowups().length + S.emails.filter(needsReply).length, "Pending follow-ups", "followups", S.emails.filter(needsReply).length + " need a reply"],
+      ["check", "tone-green", done.length, "Tasks completed", "tasks:done", "this week"]
+    ];
+    var kHtml = kpis.map(function (k) {
+      return '<button class="card kpi" data-act="nav" data-to="' + k[4] + '"><span class="kpi__delta">' + esc(k[5]) + '</span><div class="kpi__icon ' + k[1] + '">' + ic(k[0]) + '</div><div class="kpi__val">' + k[2] + '</div><div class="kpi__label">' + k[3] + "</div></button>";
+    }).join("");
+
+    var attention = active().filter(function (e) { return e.analysis && e.status !== "replied" && (isImportant(e) || needsReply(e)); })
+      .sort(function (a, b) { return PRANK[a.analysis.priority] - PRANK[b.analysis.priority] || b.ts - a.ts; }).slice(0, 5);
+    var attHtml = attention.length ? '<ul class="list">' + attention.map(function (e) {
+      return '<li><button class="row row--btn" data-act="open" data-id="' + e.id + '"><span class="pdot ' + e.analysis.priority.toLowerCase() + '"></span><span class="row__main"><span class="row__title">' + esc(e.subject) + '</span><span class="row__sub">' + esc(e.from) + " · " + esc(e.analysis.action) + '</span></span>' + pBadge(e.analysis.priority) + "</button></li>";
+    }).join("") + "</ul>" : empty("check", "You're all caught up.");
+
+    var actIc = { process: ["spark", "tone-purple"], task: ["check", "tone-green"], sent: ["send", "tone-blue"], calendar: ["cal", "tone-amber"], alert: ["alert", "tone-red"], followup: ["repeat", "tone-navy"], new: ["mail", "tone-blue"], settings: ["cog", "tone-navy"] };
+    var actHtml = '<ul class="list activity">' + S.activity.slice(0, 7).map(function (a) {
+      var x = actIc[a.type] || actIc.process;
+      return '<li><span class="a-ico ' + x[1] + '">' + ic(x[0]) + '</span><span>' + esc(a.text) + '<time datetime="' + new Date(a.ts).toISOString() + '">' + ago(a.ts) + "</time></span></li>";
+    }).join("") + "</ul>";
+
+    var dlHtml = dl.length ? '<ul class="list">' + dl.slice(0, 6).map(function (t) {
+      return '<li class="row"><span class="pdot ' + String(t.priority || "normal").toLowerCase() + '"></span><span class="row__main"><span class="row__title">' + esc(t.text) + '</span><span class="row__sub">' + (t.emailId && email(t.emailId) ? esc(email(t.emailId).from) : "Manual task") + '</span></span><span class="row__meta">' + dueLabel(t.due) + "</span></li>";
+    }).join("") + "</ul>" : empty("clock", "No deadlines in the next 7 days.");
+
+    var cats = {}; p.forEach(function (e) { cats[e.analysis.category] = (cats[e.analysis.category] || 0) + 1; });
+    var maxC = Math.max.apply(null, Object.keys(cats).map(function (k) { return cats[k]; }).concat([1]));
+    var barHtml = '<div class="bars">' + Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).map(function (k) {
+      return '<div class="bar"><span>' + esc(k) + '</span><span class="bar__track"><span class="bar__fill" style="width:' + Math.round(cats[k] / maxC * 100) + '%"></span></span><b>' + cats[k] + "</b></div>";
+    }).join("") + "</div>";
+    var pr = { Urgent: 0, Important: 0, Normal: 0, Low: 0 }; p.forEach(function (e) { pr[e.analysis.priority]++; });
+    var tot = p.length || 1, pc = { Urgent: "var(--urgent)", Important: "var(--important)", Normal: "var(--normal)", Low: "#c3c8d4" };
+    var stack = '<div class="stack" role="img" aria-label="Priority mix: ' + Object.keys(pr).map(function (k) { return pr[k] + " " + k; }).join(", ") + '">' + Object.keys(pr).map(function (k) { return '<span style="width:' + (pr[k] / tot * 100) + "%;background:" + pc[k] + '"></span>'; }).join("") + '</div><div class="legend">' + Object.keys(pr).map(function (k) { return '<span><i class="pdot ' + k.toLowerCase() + '"></i>' + k + " " + pr[k] + "</span>"; }).join("") + "</div>";
+
+    var today = iso(new Date()), tmr = iso(E.addDays(new Date(), 1));
+    var sched = S.events.filter(function (e) { return e.status === "confirmed" && (e.date === today || e.date === tmr); }).sort(evSort);
+    var schedHtml = sched.length ? '<ul class="list">' + sched.map(function (e) { return '<li class="row"><span class="row__meta" style="width:58px">' + fmtTime(e.time) + '</span><span class="row__main"><span class="row__title">' + esc(e.title) + '</span><span class="row__sub">' + (e.date === today ? "Today" : "Tomorrow") + "</span></span></li>"; }).join("") + "</ul>" : empty("cal", "Nothing scheduled today or tomorrow.");
+    var sugg = S.events.filter(function (e) { return e.status === "suggested"; }).length;
+
+    return '<div class="page-head fade-in"><div><h2 style="font-size:1.45rem">' + greet + ", " + esc(name) + '</h2><p>' + esc(longDate()) + " · Here's what your assistant has prepared.</p></div>" +
+      '<div class="btn-row"><button class="btn" data-act="simulate">' + ic("mail") + ' Simulate new email</button><a class="btn btn--primary" href="#briefing">' + ic("sun") + " Open daily briefing</a></div></div>" +
+      '<div class="kpis fade-in">' + kHtml + "</div>" +
+      '<div class="ov-grid fade-in"><section class="card"><div class="card__head"><h2>' + ic("flag") + 'Needs your attention</h2><a class="btn btn--ghost btn--sm" href="#inbox">Open inbox ' + ic("arrow") + "</a></div>" + attHtml + "</section>" +
+      '<section class="card"><div class="card__head"><h2>' + ic("bolt") + "Recent activity</h2></div>" + actHtml + "</section></div>" +
+      '<div class="ov-grid ov-grid--3 fade-in" style="margin-top:1rem"><section class="card"><div class="card__head"><h2>' + ic("clock") + 'Upcoming deadlines</h2><a class="btn btn--ghost btn--sm" href="#tasks">All tasks</a></div>' + dlHtml + "</section>" +
+      '<section class="card"><div class="card__head"><h2>' + ic("tag") + 'Inbox by category</h2></div><div class="card__body">' + barHtml + '<h3 class="mt-1" style="font-size:.8rem;color:var(--muted);margin-bottom:.2rem">Priority mix</h3>' + stack + "</div></section>" +
+      '<section class="card"><div class="card__head"><h2>' + ic("cal") + 'Today &amp; tomorrow</h2><a class="btn btn--ghost btn--sm" href="#calendar">Calendar</a></div>' + schedHtml + (sugg ? '<div class="card__foot small"><a href="#calendar">' + sugg + " meeting suggestion" + (sugg > 1 ? "s" : "") + " waiting for approval →</a></div>" : "") + "</section></div>";
+  }
+  function longDate() { var d = new Date(); return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()] + ", " + d.getDate() + " " + ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()] + " " + d.getFullYear(); }
+  function dueLabel(due) {
+    if (!due) return '<span class="muted">No date</span>';
+    var d = E.daysFrom(due), cls = d < 0 ? "overdue" : d === 0 ? "today" : "";
+    return '<span class="due ' + cls + '">' + (d < 0 ? "Overdue · " : "") + fmt(due) + "</span>";
+  }
+  function empty(icon, text) { return '<div class="empty">' + ic(icon) + "<p class=\"mb-0\">" + esc(text) + "</p></div>"; }
+  function evSort(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.time || "") < (b.time || "") ? -1 : 1; }
+
+  /* ---------------- Inbox ---------------- */
+  function visibleEmails() {
+    var f = FILTERS.filter(function (x) { return x.id === ui.filter; })[0] || FILTERS[0];
+    var q = ui.query.trim().toLowerCase();
+    return active().filter(f.test).filter(function (e) {
+      if (!q) return true;
+      return (e.from + " " + e.org + " " + e.subject + " " + e.body + " " + (e.analysis ? e.analysis.summary + " " + e.analysis.category : "")).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return b.ts - a.ts; });
+  }
+  function vInbox() {
+    var list = visibleEmails();
+    var chips = FILTERS.filter(function (f) { return !f.hideIfEmpty || active().filter(f.test).length; }).map(function (f) {
+      return '<button class="chip" data-act="filter" data-f="' + f.id + '" aria-pressed="' + (ui.filter === f.id) + '">' + f.label + ' <span class="n">' + active().filter(f.test).length + "</span></button>";
+    }).join("");
+    var items = list.length ? list.map(mailItem).join("") : empty("inbox", ui.query ? "No emails match “" + ui.query + "”." : "No emails in this view.");
+    var sel = ui.selected && email(ui.selected);
+    var mobileSearch = '<div class="field" style="margin-bottom:.6rem"><label class="sr-only" for="inbox-q">Search emails</label><input id="inbox-q" type="search" placeholder="Search sender, subject or content…" value="' + esc(ui.query) + '"></div>';
+    return '<div class="inbox-layout' + (sel ? " has-detail" : "") + '">' +
+      '<section class="inbox-list"><div class="chips" role="toolbar" aria-label="Inbox filters">' + chips + "</div>" + mobileSearch +
+      '<div class="card"><div class="card__head" style="padding-bottom:.6rem"><h2>' + ic("inbox") + esc((FILTERS.filter(function (f) { return f.id === ui.filter; })[0] || FILTERS[0]).label) + '</h2><span class="small muted">' + list.length + " email" + (list.length === 1 ? "" : "s") + '</span></div><div class="mail-list"><ul class="list" aria-label="Emails">' + items + "</ul></div></div></section>" +
+      '<section class="detail" aria-live="polite">' + (sel ? detailHtml(sel) : '<div class="card">' + empty("mail", "Select an email to see the assistant's analysis.") + "</div>") + "</section></div>";
+  }
+  function mailItem(e) {
+    var a = e.analysis;
+    var tags = a ? pBadge(a.priority) + catBadge(a.category) + (e.status === "replied" ? '<span class="badge b-green">Replied</span>' : needsReply(e) ? '<span class="badge b-outline">Needs reply</span>' : "") : '<span class="badge b-outline">Not analysed</span>';
+    return '<li><button class="mail' + (e.read ? "" : " unread") + '" data-act="open" data-id="' + e.id + '" aria-current="' + (ui.selected === e.id) + '">' +
+      '<span class="av" style="background:' + avColor(e.from) + '" aria-hidden="true">' + esc(initials(e.from)) + '</span>' +
+      '<span class="mail__top"><span class="mail__from">' + esc(e.from) + '</span><time class="mail__date">' + when(e.ts) + "</time></span>" +
+      '<span class="mail__subj">' + esc(e.subject) + "</span>" +
+      '<span class="mail__sum">' + esc(a ? a.shortSummary : trunc(e.body.replace(/\s+/g, " "), 110)) + "</span>" +
+      '<span class="mail__tags">' + tags + (a ? '<span class="mail__action">' + ic("target") + esc(trunc(a.action, 46)) + "</span>" : "") + "</span></button></li>";
+  }
+  function highlight(e) {
+    var text = esc(e.body), a = e.analysis; if (!a) return text;
+    var terms = [];
+    (a.keywords || []).forEach(function (k) { terms.push(k); });
+    (a.entities.amounts || []).concat(a.entities.references || [], a.entities.times || [], (a.entities.dates || []).map(function (d) { return d.phrase; })).forEach(function (t) { terms.push(t); });
+    terms = terms.filter(function (t) { return t && t.length > 2; }).sort(function (x, y) { return y.length - x.length; });
+    if (!terms.length) return text;
+    var re = new RegExp("(" + terms.map(function (t) { return esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") + ")", "gi");
+    return text.replace(re, "<mark>$1</mark>");
+  }
+  function detailHtml(e) {
+    var head = '<button class="btn btn--sm back-btn" data-act="close-detail">' + ic("back") + " Back to inbox</button>" +
+      '<div class="card"><div class="detail__head"><div class="detail__meta">' + (e.analysis ? pBadge(e.analysis.priority) + catBadge(e.analysis.category) : "") + (e.status === "replied" ? '<span class="badge b-green">Replied</span>' : "") + "</div>" +
+      '<h2 class="detail__subj">' + esc(e.subject) + "</h2>" +
+      '<div class="detail__meta"><span class="av" style="width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:.65rem;font-weight:700;background:' + avColor(e.from) + '">' + esc(initials(e.from)) + "</span><span><b style=\"color:var(--ink)\">" + esc(e.from) + "</b>" + (e.org ? " · " + esc(e.org) : "") + '</span><span>&lt;' + esc(e.email || "") + '&gt;</span><span>' + when(e.ts) + " (" + ago(e.ts) + ")</span></div>" +
+      '<div class="btn-row" style="margin-top:.8rem">' +
+      (e.analysis ? "" : '<button class="btn btn--primary btn--sm" data-act="process" data-id="' + e.id + '">' + ic("spark") + " Run AI analysis</button>") +
+      (e.analysis ? '<button class="btn btn--sm" data-act="reanalyse" data-id="' + e.id + '">' + ic("refresh") + " Re-analyse</button>" : "") +
+      '<button class="btn btn--sm" data-act="archive" data-id="' + e.id + '">' + ic("archive") + " Archive</button>" +
+      '<button class="btn btn--sm" data-act="toggle-read" data-id="' + e.id + '">' + ic("mail") + (e.read ? " Mark unread" : " Mark read") + "</button></div></div>" +
+      '<div class="detail__body" aria-label="Email body">' + highlight(e) + "</div>";
+    if (!e.analysis) return head + '<div class="card__body" style="padding-top:1rem">' + empty("spark", "This email hasn't been analysed yet.") + "</div></div>";
+    return head + '<div class="hint" style="padding:.6rem 1.2rem 0">Highlighted text influenced the analysis. ' + engineBadge(e.analysis) + "</div>" + analysisHtml(e, e.analysis, "inbox") + "</div>";
+  }
+  function engineBadge(a) {
+    return a.engine === "ai" ? '<span class="badge b-green">' + esc(engineLabel()) + "</span>" : '<span class="badge b-purple" title="Rule-based analysis running in your browser">Demonstration engine</span>' + (a.engineNote ? ' <span class="small muted">' + esc(a.engineNote) + "</span>" : "");
+  }
+
+  /* Shared analysis component (inbox detail + analyse page) */
+  function analysisHtml(e, a, ctx) {
+    var en = a.entities, rows = [];
+    function kv(label, arr, map) { if (arr && arr.length) rows.push("<dt>" + label + "</dt><dd>" + arr.map(function (x) { return '<span class="ent">' + esc(map ? map(x) : x) + "</span>"; }).join("") + "</dd>"); }
+    kv("People", en.people); kv("Organisations", en.organisations); kv("Amounts", en.amounts); kv("References", en.references);
+    kv("Dates", en.dates, function (d) { return d.phrase + " → " + fmt(d.date); }); kv("Times", en.times); kv("Locations", en.locations);
+    kv("Contact", (en.phones || []).concat(en.emails || [])); kv("Links", en.links);
+    var extracted = rows.length ? '<dl class="kv">' + rows.join("") + "</dl>" : '<p class="muted mb-0">No specific details found.</p>';
+    var dls = a.deadlines.length ? a.deadlines.map(function (d, i) {
+      return '<div class="deadline">' + ic(d.label === "Deadline" ? "clock" : "cal") + '<span><b style="color:var(--ink)">' + esc(d.label) + '</b><br><span class="rel">“' + esc(d.phrase) + "” · " + esc(rel(d.date)) + '</span></span><span class="when">' + fmt(d.date) + (d.time ? ", " + fmtTime(d.time) : "") + "</span></div>";
+    }).join("") : '<p class="muted mb-0">No deadlines detected.</p>';
+    var inTasks = ctx === "inbox";
+    var tasks = a.tasks.length ? '<ul class="list">' + a.tasks.map(function (t) {
+      var listed = inTasks && S.tasks.some(function (x) { return x.emailId === e.id && x.text === t.text; });
+      return '<li style="display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-top:1px dashed var(--line)"><span style="flex:1;min-width:0">' + esc(t.text) + '<br><span class="small muted">Due ' + (t.due ? fmt(t.due) + " · " + rel(t.due) : "—") + "</span></span>" + (listed ? '<span class="badge b-green">In tasks</span>' : "") + "</li>";
+    }).join("") + "</ul>" + (inTasks && a.tasks.some(function (t) { return !S.tasks.some(function (x) { return x.emailId === e.id && x.text === t.text; }); }) ? '<button class="btn btn--sm mt-1" data-act="add-tasks" data-id="' + e.id + '">' + ic("plus") + " Add to task list</button>" : "") : '<p class="muted mb-0">No action items.</p>';
+    var ev = a.event, evHtml = "";
+    if (ev) {
+      var existing = inTasks && S.events.filter(function (x) { return x.emailId === e.id; })[0];
+      var conflict = findConflict(ev, existing && existing.id);
+      evHtml = '<div class="status-line" style="background:var(--blue-soft);color:var(--navy)">' + ic("cal") + "<span><b>" + esc(ev.title) + "</b><br>" + fmt(ev.date) + " at " + fmtTime(ev.time) + (ev.proposed ? " · proposed slot" : "") + (conflict ? ' · <span style="color:var(--urgent)">clashes with “' + esc(conflict.title) + "”</span>" : "") + "</span></div>" +
+        (inTasks ? (existing && existing.status === "confirmed" ? '<p class="small muted mt-1 mb-0">✓ On your calendar</p>' : '<div class="btn-row mt-1"><button class="btn btn--sm btn--navy" data-act="accept-event-email" data-id="' + e.id + '">' + ic("cal") + " Add to calendar</button></div>") : "");
+    }
+    var conf = Math.round(a.confidence * 100);
+    var tone = e.tone || S.settings.tone || "Formal";
+    var draftText = e.draft != null ? e.draft : E.draft(e, a, tone, S.settings);
+    var actionBtn = { reply: ["Review the draft reply", "focus-draft", "pen"], calendar: ["Add to calendar", "accept-event-email", "cal"], task: ["Add to task list", "add-tasks", "check"], archive: ["Archive email", "archive", "archive"], file: ["Archive & file", "archive", "archive"], read: ["Mark as read", "mark-read", "mail"] }[a.actionType] || ["Review", "focus-draft", "pen"];
+    var replied = e.status === "replied";
+    var draftBlock = a.requiresResponse ? (replied ? '<div class="status-line" style="background:var(--green-soft);color:var(--green)">' + ic("check") + "<span>Reply approved and sent" + (e.sentAt ? " " + ago(e.sentAt) : "") + " (simulated). A follow-up reminder was created.</span></div>" :
+      '<div class="draft-tools"><div class="seg" role="group" aria-label="Reply tone">' + ["Formal", "Friendly", "Concise"].map(function (t) { return '<button type="button" data-act="tone" data-tone="' + t + '" data-id="' + e.id + '" aria-pressed="' + (tone === t) + '">' + t + "</button>"; }).join("") + '</div><button class="btn btn--ghost btn--sm" data-act="regen" data-id="' + e.id + '">' + ic("refresh") + " Regenerate</button></div>" +
+      '<label class="sr-only" for="draft-' + e.id + '">Suggested response</label><textarea class="draft" id="draft-' + e.id + '" data-draft="' + e.id + '">' + esc(draftText) + "</textarea>" +
+      '<div class="btn-row mt-1">' + (inTasks ? '<button class="btn btn--primary" data-act="approve" data-id="' + e.id + '">' + ic("send") + " Approve &amp; send</button>" : '<button class="btn btn--primary" data-act="add-to-inbox">' + ic("inbox") + " Add to Smart Inbox</button>") + '<button class="btn" data-act="copy-draft" data-id="' + e.id + '">' + ic("copy") + ' Copy</button><span class="hint">Nothing is sent without your approval. Sending is simulated in this demo.</span></div>') :
+      '<p class="muted mb-0">No reply needed for this email.</p>';
+
+    return '<div class="analysis">' +
+      '<div class="ablock ablock--wide"><h4>' + ic("list") + "Email summary</h4><p>" + esc(a.summary) + '</p><p class="small muted mb-0">Sentiment: ' + esc(a.sentiment) + " · Response needed: " + (a.requiresResponse ? "Yes" : "No") + "</p></div>" +
+      '<div class="ablock"><h4>' + ic("target") + "Intent detection</h4><p class=\"mb-0\" style=\"color:var(--ink);font-weight:600\">" + esc(a.intent) + '</p><div class="conf"><span>Confidence</span><span class="conf__track"><span class="conf__fill" style="width:' + conf + '%"></span></span><b>' + conf + "%</b></div>" + (a.secondaryIntents && a.secondaryIntents.length ? '<p class="small muted mt-1 mb-0">Also: ' + esc(a.secondaryIntents.join("; ")) + "</p>" : "") + "</div>" +
+      '<div class="ablock"><h4>' + ic("flag") + 'Priority classification</h4><div class="btn-row">' + pBadge(a.priority) + catBadge(a.category) + '<span class="small muted">score ' + a.score + "</span></div>" +
+      '<ul class="reasons">' + a.reasons.map(function (r) { return "<li>" + esc(r) + "</li>"; }).join("") + "</ul>" +
+      (inTasks ? '<label class="small muted" style="display:flex;gap:.4rem;align-items:center;margin-top:.5rem">Override <select data-act="override" data-id="' + e.id + '" style="font:inherit;font-size:.8rem;padding:.15rem .3rem;border:1px solid var(--line);border-radius:6px">' + ["Urgent", "Important", "Normal", "Low"].map(function (p) { return "<option" + (p === a.priority ? " selected" : "") + ">" + p + "</option>"; }).join("") + "</select></label>" : "") + "</div>" +
+      '<div class="ablock"><h4>' + ic("tag") + "Important information extracted</h4>" + extracted + "</div>" +
+      '<div class="ablock"><h4>' + ic("clock") + "Deadlines</h4>" + dls + "</div>" +
+      '<div class="ablock ablock--wide ablock--action"><h4>' + ic("bolt") + 'Recommended action</h4><p class="action">' + esc(a.action) + '</p><p class="small muted">Suggested response time: ' + esc(a.responseTime) + "</p>" +
+      (inTasks && !replied ? '<button class="btn btn--navy btn--sm" data-act="' + actionBtn[1] + '" data-id="' + e.id + '">' + ic(actionBtn[2]) + " " + actionBtn[0] + "</button>" : "") + "</div>" +
+      '<div class="ablock"><h4>' + ic("check") + "Tasks extracted</h4>" + tasks + "</div>" +
+      '<div class="ablock"><h4>' + ic("cal") + "Calendar &amp; follow-up</h4>" + (evHtml || '<p class="muted">No meeting detected.</p>') + (a.followup ? '<p class="small mt-1 mb-0">Follow-up: <b>' + fmt(a.followup.date) + "</b> — " + esc(a.followup.note) + "</p>" : "") + "</div>" +
+      '<div class="ablock ablock--wide"><h4>' + ic("pen") + "Suggested response</h4>" + draftBlock + "</div>" +
+      "</div>";
+  }
+  function findConflict(ev, ignoreId) {
+    var t = toMin(ev.time);
+    return S.events.filter(function (x) { return x.status === "confirmed" && x.id !== ignoreId && x.date === ev.date && Math.abs(toMin(x.time) - t) < 60; })[0];
+  }
+  function toMin(t) { var p = String(t || "09:00").split(":"); return +p[0] * 60 + +p[1]; }
+
+  /* ---------------- Analyse page ---------------- */
+  function vAnalyze() {
+    var inp = ui.analyzeInput || { from: "", email: "", subject: "", body: "" };
+    var ex = window.DEMO_EXAMPLES.map(function (x, i) { return '<button class="chip" data-act="example" data-i="' + i + '">' + esc(x.label) + "</button>"; }).join("");
+    var steps = ["Receive", "Classify", "Extract", "Prioritise", "Draft reply"].map(function (s, i) { return '<span class="step" data-step="' + i + '">' + ic(["mail", "tag", "list", "flag", "pen"][i]) + s + "</span>"; }).join('<span class="step-sep" aria-hidden="true">→</span>');
+    var res = ui.analyzeResult;
+    return '<div class="analyze-layout">' +
+      '<section class="card"><div class="card__head"><h2>' + ic("mail") + 'Your email</h2></div><div class="card__body"><form class="form" id="analyze-form" novalidate>' +
+      '<div><span class="small muted" style="display:block;margin-bottom:.35rem">Start from an example:</span><div class="examples">' + ex + "</div></div>" +
+      '<div class="field-row"><div class="field"><label for="a-from">Sender name</label><input id="a-from" name="from" maxlength="60" placeholder="e.g. Jane Wairimu" value="' + esc(inp.from) + '"></div>' +
+      '<div class="field"><label for="a-email">Sender email</label><input id="a-email" name="email" type="email" maxlength="80" placeholder="jane@example.com" value="' + esc(inp.email) + '"></div></div>' +
+      '<div class="field"><label for="a-subject">Subject</label><input id="a-subject" name="subject" maxlength="140" placeholder="e.g. Proposal needed by Friday" value="' + esc(inp.subject) + '"></div>' +
+      '<div class="field" id="f-body"><label for="a-body">Email body *</label><textarea id="a-body" name="body" maxlength="5000" placeholder="Write or paste a fictional email here…">' + esc(inp.body) + '</textarea><p class="err" role="alert">Please enter the email text (at least a sentence).</p></div>' +
+      '<div class="btn-row"><button type="submit" class="btn btn--primary">' + ic("spark") + ' Run analysis</button><button type="button" class="btn btn--ghost" data-act="clear-analyze">Clear</button></div>' +
+      '<p class="hint mb-0">' + ic("info").replace("<svg", '<svg style="display:inline;width:13px;height:13px;vertical-align:-2px"') + " Use fictional content only. " + (CFG.aiEndpoint ? "Text is sent to the configured AI endpoint." : "The demonstration engine runs in your browser — nothing is sent anywhere.") + "</p>" +
+      "</form></div></section>" +
+      '<section class="card" id="analyze-out"><div class="card__head"><h2>' + ic("spark") + 'Assistant analysis</h2><span id="analyze-engine">' + (res ? engineBadge(res.a) : '<span class="badge b-purple">' + esc(engineLabel()) + "</span>") + '</span></div><div class="card__body" style="padding-bottom:.4rem"><div class="pipeline" id="pipeline">' + steps + "</div></div>" +
+      '<div id="analyze-result">' + (res ? analyzeResultHtml(res) : '<div class="card__body">' + empty("spark", "Choose an example or write your own email, then click “Run analysis”.") + "</div>") + "</div></section></div>";
+  }
+  function analyzeResultHtml(res) {
+    var json = JSON.stringify({ category: res.a.category, intent: res.a.intent, confidence: res.a.confidence, priority: res.a.priority, requires_response: res.a.requiresResponse, summary: res.a.summary, entities: res.a.entities, deadlines: res.a.deadlines, tasks: res.a.tasks, calendar_event: res.a.event, recommended_action: res.a.action }, null, 2);
+    return '<div class="fade-in">' + analysisHtml(res.e, res.a, "analyze") +
+      '<div class="card__body"><details><summary class="small" style="cursor:pointer;font-weight:600;color:var(--purple-2)">' + ic("code").replace("<svg", '<svg style="display:inline;width:14px;height:14px;vertical-align:-2px"') + " View structured output (what Make.com receives)</summary><pre class=\"json mt-1\">" + esc(json) + "</pre></details></div></div>";
+  }
+  function runAnalyzePage(form) {
+    var data = { from: form.from.value.trim() || "Demo Sender", email: form.email.value.trim() || "sender@example.com", subject: form.subject.value.trim() || "(no subject)", body: form.body.value.trim() };
+    ui.analyzeInput = { from: form.from.value, email: form.email.value, subject: form.subject.value, body: form.body.value };
+    var fb = $("#f-body");
+    if (data.body.split(/\s+/).length < 3) { fb.classList.add("has-error"); form.body.focus(); return; }
+    fb.classList.remove("has-error");
+    var btn = form.querySelector("[type=submit]"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analysing…';
+    var em = { id: "draft-" + uid(), from: data.from, email: data.email, org: "", subject: data.subject, body: data.body, ts: Date.now(), read: true, status: "new" };
+    $("#analyze-result").innerHTML = '<div class="card__body">' + empty("spark", "Working…").replace("<svg", '<svg class="spinner spinner--dark" style="border-radius:50%;width:28px;height:28px"') + "</div>";
+    animatePipeline().then(function () { return runAnalysis(em); }).then(function (a) {
+      em.analysis = a; ui.analyzeResult = { e: em, a: a };
+      $("#analyze-result").innerHTML = analyzeResultHtml(ui.analyzeResult);
+      $("#analyze-engine").innerHTML = engineBadge(a);
+      btn.disabled = false; btn.innerHTML = ic("spark") + " Run analysis";
+      log("process", "Analysed a test email: “" + trunc(em.subject, 50) + "” → " + a.priority); save(); renderNav();
+      if (window.innerWidth < 1100) $("#analyze-out").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+  function animatePipeline() {
+    var steps = $$("#pipeline .step"), i = 0;
+    steps.forEach(function (s) { s.classList.remove("is-active", "is-done"); });
+    return new Promise(function (resolve) {
+      (function next() {
+        if (i > 0) { steps[i - 1].classList.remove("is-active"); steps[i - 1].classList.add("is-done"); }
+        if (i >= steps.length) return resolve();
+        steps[i].classList.add("is-active"); i++; setTimeout(next, reduced() ? 40 : 380);
+      })();
+    });
+  }
+  function reduced() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+  /* ---------------- Tasks ---------------- */
+  function vTasks() {
+    var open = openTasks(), done = S.tasks.filter(function (t) { return t.done; }).sort(function (a, b) { return b.doneTs - a.doneTs; });
+    var today = iso(new Date()), week = iso(E.addDays(new Date(), 7));
+    var groups = [["Overdue", function (t) { return t.due && t.due < today; }], ["Due today", function (t) { return t.due === today; }], ["Next 7 days", function (t) { return t.due && t.due > today && t.due <= week; }], ["Later", function (t) { return t.due && t.due > week; }], ["No due date", function (t) { return !t.due; }]];
+    var body;
+    if (ui.taskTab === "open") {
+      body = open.length ? groups.map(function (g) {
+        var items = open.filter(g[1]).sort(function (a, b) { return (a.due || "z") < (b.due || "z") ? -1 : 1 || PRANK[a.priority] - PRANK[b.priority]; });
+        if (!items.length) return "";
+        return '<div class="group-h"><span>' + g[0] + "</span><span>" + items.length + '</span></div><ul class="list">' + items.map(taskRow).join("") + "</ul>";
+      }).join("") : empty("check", "No open tasks — nice work.");
+    } else body = done.length ? '<ul class="list">' + done.map(taskRow).join("") + "</ul>" : empty("check", "No completed tasks yet.");
+    return '<div class="card"><div class="card__head"><h2>' + ic("check") + 'Tasks</h2><span class="small muted">' + open.length + " open · " + done.length + ' completed</span></div>' +
+      '<form class="add-task" id="add-task" autocomplete="off"><label class="sr-only" for="t-text">New task</label><input id="t-text" placeholder="Add a task…" maxlength="120" required><label class="sr-only" for="t-due">Due date</label><input id="t-due" type="date" value="' + iso(E.addDays(new Date(), 1)) + '"><label class="sr-only" for="t-pri">Priority</label><select id="t-pri"><option>Urgent</option><option>Important</option><option selected>Normal</option><option>Low</option></select><button class="btn btn--primary" type="submit">' + ic("plus") + " Add</button></form>" +
+      '<div class="tabs" role="tablist"><button role="tab" data-act="task-tab" data-tab="open" aria-selected="' + (ui.taskTab === "open") + '">Open (' + open.length + ')</button><button role="tab" data-act="task-tab" data-tab="done" aria-selected="' + (ui.taskTab === "done") + '">Completed (' + done.length + ")</button></div>" + body + "</div>";
+  }
+  function taskRow(t) {
+    var src = t.emailId && email(t.emailId);
+    return '<li class="task' + (t.done ? " done" : "") + '" id="task-' + t.id + '"><input type="checkbox" data-act="toggle-task" data-id="' + t.id + '"' + (t.done ? " checked" : "") + ' aria-label="Mark “' + esc(t.text) + '” as ' + (t.done ? "not done" : "done") + '">' +
+      '<div class="row__main"><div class="row__title" style="white-space:normal">' + esc(t.text) + '</div><div class="task__meta"><span class="pdot ' + String(t.priority || "normal").toLowerCase() + '"></span>' + esc(t.priority || "Normal") +
+      (t.done ? '<span>Completed ' + ago(t.doneTs) + "</span>" : "<span>" + dueLabel(t.due) + "</span>") +
+      (src ? '<a href="#inbox" data-act="open" data-id="' + src.id + '">From ' + esc(src.from) + "</a>" : '<span>Added manually</span>') + "</div></div>" +
+      '<button class="icon-btn" data-act="delete-task" data-id="' + t.id + '" aria-label="Delete task">' + ic("trash") + "</button></li>";
+  }
+
+  /* ---------------- Follow-ups ---------------- */
+  function vFollowups() {
+    var waiting = pendingFollowups().sort(function (a, b) { return a.due < b.due ? -1 : 1; });
+    var resolved = S.followups.filter(function (f) { return f.status === "done"; });
+    var reply = S.emails.filter(needsReply).sort(function (a, b) { return PRANK[a.analysis.priority] - PRANK[b.analysis.priority] || a.ts - b.ts; });
+    var wHtml = waiting.length ? '<ul class="list">' + waiting.map(function (f) {
+      var d = E.daysFrom(f.due);
+      return '<li class="task"><span class="av" style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:.7rem;font-weight:700;flex:none;background:' + avColor(f.contact) + '">' + esc(initials(f.contact)) + '</span><div class="row__main"><div class="row__title">' + esc(f.contact) + (f.org ? ' <span class="muted" style="font-weight:500">· ' + esc(f.org) + "</span>" : "") + '</div><div class="row__sub" style="white-space:normal">Waiting on: ' + esc(f.topic) + '</div><div class="task__meta"><span>Sent ' + ago(f.sentTs) + "</span><span>Follow up " + (d < 0 ? '<span class="due overdue">overdue (' + fmt(f.due) + ")</span>" : d === 0 ? '<span class="due today">today</span>' : fmt(f.due)) + "</span>" + (f.nudges ? "<span>" + f.nudges + " reminder" + (f.nudges > 1 ? "s" : "") + " sent</span>" : "") + "</div>" +
+        '<div class="btn-row mt-1"><button class="btn btn--sm btn--primary" data-act="fu-draft" data-id="' + f.id + '">' + ic("pen") + ' Draft follow-up</button><button class="btn btn--sm" data-act="fu-snooze" data-id="' + f.id + '">Snooze 2 days</button><button class="btn btn--sm" data-act="fu-done" data-id="' + f.id + '">' + ic("check") + " They replied</button></div></div></li>";
+    }).join("") + "</ul>" : empty("repeat", "You're not waiting on anyone.");
+    var rHtml = reply.length ? '<ul class="list">' + reply.map(function (e) {
+      return '<li><button class="row row--btn" data-act="open" data-id="' + e.id + '"><span class="pdot ' + e.analysis.priority.toLowerCase() + '"></span><span class="row__main"><span class="row__title">' + esc(e.from) + " — " + esc(e.subject) + '</span><span class="row__sub">' + esc(e.analysis.action) + " · respond " + esc(e.analysis.responseTime.toLowerCase()) + '</span></span><span class="row__meta">' + ago(e.ts) + "</span></button></li>";
+    }).join("") + "</ul>" : empty("check", "No emails are waiting for your reply.");
+    return '<div class="ov-grid"><section class="card"><div class="card__head"><h2>' + ic("repeat") + 'Waiting on others</h2><span class="small muted">' + waiting.length + " open · " + resolved.length + ' resolved</span></div>' + wHtml + "</section>" +
+      '<section class="card"><div class="card__head"><h2>' + ic("mail") + 'Awaiting your reply</h2><span class="small muted">' + reply.length + "</span></div>" + rHtml + "</section></div>";
+  }
+
+  /* ---------------- Calendar ---------------- */
+  function vCalendar() {
+    var start = E.addDays(new Date(), ui.weekOffset * 7), today = iso(new Date()), days = [];
+    for (var i = 0; i < 7; i++) days.push(E.addDays(start, i));
+    var evs = S.events.slice().sort(evSort);
+    var cols = days.map(function (d) {
+      var k = iso(d), list = evs.filter(function (e) { return e.date === k; });
+      return '<div class="day' + (k === today ? " today" : "") + (d.getDay() % 6 === 0 ? " weekend" : "") + '"><div class="day__h"><span>' + ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + "</span><b>" + d.getDate() + "</b></div><div>" +
+        (list.length ? list.map(evHtml).join("") : '<span class="small" style="color:var(--faint)">Free</span>') + "</div></div>";
+    }).join("");
+    var lastDay = iso(days[6]);
+    var later = evs.filter(function (e) { return e.date > lastDay; }).slice(0, 6);
+    var sugg = evs.filter(function (e) { return e.status === "suggested"; });
+    return '<div class="card"><div class="card__head"><h2>' + ic("cal") + fmt(iso(days[0])) + " – " + fmt(lastDay) + '</h2><div class="btn-row"><button class="icon-btn" data-act="week" data-d="-1" aria-label="Previous week">' + ic("chevL") + '</button><button class="btn btn--sm" data-act="week" data-d="0">Today</button><button class="icon-btn" data-act="week" data-d="1" aria-label="Next week">' + ic("chev") + '</button><button class="btn btn--sm btn--primary" data-act="new-event">' + ic("plus") + " New event</button></div></div>" +
+      '<div class="card__body small muted" style="padding-bottom:.6rem">Dashed items are suggestions from your inbox, waiting for approval. ' + sugg.length + " suggestion" + (sugg.length === 1 ? "" : "s") + " pending.</div>" +
+      '<div class="week">' + cols + "</div></div>" +
+      (later.length ? '<section class="card" style="margin-top:1rem"><div class="card__head"><h2>' + ic("clock") + 'Later</h2></div><ul class="list">' + later.map(function (e) { return '<li class="row"><span class="row__meta" style="width:110px">' + fmt(e.date) + ", " + fmtTime(e.time) + '</span><span class="row__main"><span class="row__title">' + esc(e.title) + '</span><span class="row__sub">' + (e.status === "suggested" ? "Suggested — awaiting approval" : "Confirmed") + "</span></span>" + (e.status === "suggested" ? '<button class="btn btn--xs btn--navy" data-act="ev-accept" data-id="' + e.id + '">Accept</button>' : "") + "</li>"; }).join("") + "</ul></section>" : "");
+  }
+  function evHtml(e) {
+    var cls = e.status === "suggested" ? "suggested" : e.kind === "external" || e.kind === "meeting" ? "purple" : e.kind === "event" ? "amber" : "";
+    var conflict = e.status === "suggested" && findConflict(e, e.id);
+    return '<div class="ev ' + cls + (conflict ? " conflict" : "") + '"><b>' + fmtTime(e.time) + (e.status === "suggested" ? " · suggested" : "") + "</b>" + esc(e.title) +
+      (conflict ? '<div style="color:var(--urgent);font-size:.7rem;margin-top:.2rem">Clashes with ' + esc(conflict.title) + "</div>" : "") +
+      (e.status === "suggested" ? '<div class="ev-actions"><button class="btn btn--xs btn--navy" data-act="ev-accept" data-id="' + e.id + '">Accept</button><button class="btn btn--xs" data-act="ev-dismiss" data-id="' + e.id + '">Dismiss</button></div>' :
+        '<div class="ev-actions"><button class="btn btn--xs btn--ghost" data-act="ev-delete" data-id="' + e.id + '" aria-label="Remove ' + esc(e.title) + '">Remove</button></div>') + "</div>";
+  }
+
+  /* ---------------- Briefing ---------------- */
+  function briefingData() {
+    var today = iso(new Date()), tmr = iso(E.addDays(new Date(), 1));
+    return {
+      top: active().filter(function (e) { return e.analysis && e.status !== "replied" && isImportant(e); }).sort(function (a, b) { return PRANK[a.analysis.priority] - PRANK[b.analysis.priority]; }).slice(0, 5),
+      overdue: openTasks().filter(function (t) { return t.due && t.due < today; }),
+      dueToday: openTasks().filter(function (t) { return t.due === today; }),
+      dueTmr: openTasks().filter(function (t) { return t.due === tmr; }),
+      meetings: S.events.filter(function (e) { return e.status === "confirmed" && (e.date === today || e.date === tmr); }).sort(evSort),
+      suggestions: S.events.filter(function (e) { return e.status === "suggested"; }).sort(evSort),
+      followups: pendingFollowups().filter(function (f) { return f.due <= today; }),
+      replies: S.emails.filter(needsReply).length,
+      unread: active().filter(function (e) { return !e.read; }).length,
+      info: active().filter(function (e) { return e.analysis && e.analysis.category === "General information"; }).length
+    };
+  }
+  function vBriefing() {
+    var b = briefingData(), name = String(S.settings.yourName || "").split(" ")[0], hr = new Date().getHours();
+    function sec(title, icon, items, fn, none) { return '<section class="card"><div class="card__head"><h2>' + ic(icon) + title + '</h2><span class="small muted">' + items.length + '</span></div><div class="card__body">' + (items.length ? "<ul>" + items.map(fn).join("") + "</ul>" : '<p class="muted mb-0">' + none + "</p>") + "</div></section>"; }
+    return '<div class="brief fade-in"><div class="brief__hero"><p class="small mb-0" style="opacity:.8">' + esc(longDate()) + " · generated " + new Date().toTimeString().slice(0, 5) + '</p><h2>' + (hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening") + ", " + esc(name) + '.</h2><p class="mb-0">' + esc(briefSentence(b)) + '</p><div class="brief__stats"><span><b>' + b.top.length + "</b>priority emails</span><span><b>" + (b.dueToday.length + b.overdue.length) + "</b>tasks due / overdue</span><span><b>" + b.meetings.length + "</b>meetings today &amp; tomorrow</span><span><b>" + b.replies + '</b>replies needed</span></div></div>' +
+      '<div class="btn-row" style="margin-bottom:1rem"><button class="btn" data-act="copy-brief">' + ic("copy") + ' Copy as text</button><button class="btn" data-act="regen-brief">' + ic("refresh") + ' Refresh</button><a class="btn btn--ghost" href="#inbox">Go to inbox ' + ic("arrow") + "</a></div>" +
+      '<div class="grid">' +
+      sec("Top priorities", "flag", b.top, function (e) { return '<li><a href="#inbox" data-act="open" data-id="' + e.id + '"><b>' + esc(e.from) + "</b></a> — " + esc(e.subject) + ' <span class="badge ' + pClass(e.analysis.priority) + '">' + e.analysis.priority + '</span><br><span class="small muted">' + esc(e.analysis.action) + "</span></li>"; }, "Nothing urgent. Enjoy the calm.") +
+      sec("Overdue", "alert", b.overdue, function (t) { return "<li>" + esc(t.text) + ' <span class="due overdue small">(' + fmt(t.due) + ")</span></li>"; }, "Nothing overdue.") +
+      sec("Due today &amp; tomorrow", "clock", b.dueToday.concat(b.dueTmr), function (t) { return "<li>" + esc(t.text) + ' <span class="small muted">· ' + (t.due === iso(new Date()) ? "today" : "tomorrow") + "</span></li>"; }, "No tasks due.") +
+      sec("Meetings", "cal", b.meetings, function (e) { return "<li><b>" + (e.date === iso(new Date()) ? "Today" : "Tomorrow") + " " + fmtTime(e.time) + "</b> — " + esc(e.title) + "</li>"; }, "No meetings today or tomorrow.") +
+      sec("Meeting suggestions to approve", "spark", b.suggestions, function (e) { return "<li>" + esc(e.title) + ' <span class="small muted">· ' + fmt(e.date) + ", " + fmtTime(e.time) + '</span> <button class="btn btn--xs btn--navy" data-act="ev-accept" data-id="' + e.id + '">Accept</button></li>'; }, "No pending suggestions.") +
+      sec("Follow-ups due", "repeat", b.followups, function (f) { return "<li><b>" + esc(f.contact) + "</b> — " + esc(f.topic) + "</li>"; }, "No follow-ups due today.") +
+      "</div></div>";
+  }
+  function briefSentence(b) {
+    var parts = [];
+    if (b.top.length) parts.push(b.top.length + " email" + (b.top.length > 1 ? "s need" : " needs") + " your attention, led by " + b.top[0].from + "'s “" + trunc(b.top[0].subject, 48) + "”");
+    if (b.overdue.length) parts.push(b.overdue.length + " task" + (b.overdue.length > 1 ? "s are" : " is") + " overdue");
+    if (b.meetings.length) parts.push("you have " + b.meetings.length + " meeting" + (b.meetings.length > 1 ? "s" : "") + " in the next two days");
+    if (b.info) parts.push(b.info + " informational email" + (b.info > 1 ? "s were" : " was") + " set aside");
+    return parts.length ? cap(parts.join("; ")) + "." : "Your inbox is clear and nothing is due.";
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function briefText() {
+    var b = briefingData(), L = ["DAILY BRIEFING — " + longDate(), "", briefSentence(b), ""];
+    function block(t, items, fn) { L.push(t.toUpperCase()); if (!items.length) L.push("- None"); items.forEach(function (x) { L.push("- " + fn(x)); }); L.push(""); }
+    block("Top priorities", b.top, function (e) { return e.from + ": " + e.subject + " [" + e.analysis.priority + "] → " + e.analysis.action; });
+    block("Overdue", b.overdue, function (t) { return t.text + " (" + fmt(t.due) + ")"; });
+    block("Due today & tomorrow", b.dueToday.concat(b.dueTmr), function (t) { return t.text + " (" + fmt(t.due) + ")"; });
+    block("Meetings", b.meetings, function (e) { return fmt(e.date) + " " + fmtTime(e.time) + " — " + e.title; });
+    block("Follow-ups due", b.followups, function (f) { return f.contact + " — " + f.topic; });
+    L.push("Generated by the AI Executive Assistant demo (fictional data).");
+    return L.join("\n");
+  }
+
+  /* ---------------- Settings ---------------- */
+  function vSettings() {
+    var s = S.settings;
+    return '<div class="settings grid"><section class="card"><div class="card__head"><h2>' + ic("user") + 'Profile &amp; writing</h2></div><div class="card__body"><form class="form" id="settings-form">' +
+      '<div class="field-row"><div class="field"><label for="s-name">Your name (used in signatures)</label><input id="s-name" name="yourName" maxlength="60" value="' + esc(s.yourName) + '"></div><div class="field"><label for="s-biz">Business name</label><input id="s-biz" name="businessName" maxlength="80" value="' + esc(s.businessName) + '"></div></div>' +
+      '<div class="field"><label for="s-tone">Default reply tone</label><select id="s-tone" name="tone">' + ["Formal", "Friendly", "Concise"].map(function (t) { return "<option" + (t === s.tone ? " selected" : "") + ">" + t + "</option>"; }).join("") + "</select></div>" +
+      '<div class="field"><label for="s-vip">VIP senders (names, companies or domains, comma-separated)</label><input id="s-vip" name="vipSenders" value="' + esc(s.vipSenders) + '"><p class="hint mb-0">Emails from these senders get a priority boost.</p></div>' +
+      '<div class="field"><label for="s-urg">Urgent keywords (comma-separated)</label><input id="s-urg" name="urgentKeywords" value="' + esc(s.urgentKeywords) + '"></div>' +
+      '<label class="switch"><input type="checkbox" name="autoProcess"' + (s.autoProcess ? " checked" : "") + '><span class="track"></span>Analyse new emails automatically</label>' +
+      '<div class="btn-row"><button class="btn btn--primary" type="submit">Save &amp; re-analyse inbox</button></div></form></div></section>' +
+      '<section class="card"><div class="card__head"><h2>' + ic("spark") + 'Analysis engine</h2>' + (CFG.aiEndpoint ? '<span class="badge b-green">Live AI endpoint</span>' : '<span class="badge b-purple">Demonstration engine</span>') + '</div><div class="card__body"><p>' +
+      (CFG.aiEndpoint ? "Emails are analysed by your connected endpoint (" + esc(CFG.aiEndpointLabel || "") + "). If it is unreachable, the demonstration engine is used and clearly labelled." :
+        "This demo uses a <b>rule-based demonstration engine</b> that runs in your browser. It detects intent, priority, dates, amounts and action items with transparent rules, so it works on any website without exposing an AI key. It is not a large language model and will be less accurate on unusual emails.") +
+      '</p><p class="mb-0">In a client deployment, the same steps run in <b>Make.com</b>: Gmail triggers the scenario, an AI model returns this same structured output, and results go to Google Sheets and Google Calendar — with replies always waiting for human approval.</p></div></section>' +
+      '<section class="card"><div class="card__head"><h2>' + ic("refresh") + 'Demo data</h2></div><div class="card__body"><p>All emails, people and companies are fictional. Your changes are saved in this browser only.</p><button class="btn btn--danger" data-act="reset">' + ic("trash") + " Reset demo data</button></div></section></div>";
+  }
+
+  /* ---------------- After render: bind non-delegated bits ---------------- */
+  function afterRender() {
+    var af = $("#analyze-form"); if (af) af.addEventListener("submit", function (e) { e.preventDefault(); runAnalyzePage(af); });
+    var tf = $("#add-task"); if (tf) tf.addEventListener("submit", function (e) {
+      e.preventDefault(); var t = $("#t-text").value.trim(); if (!t) { $("#t-text").focus(); return; }
+      S.tasks.push({ id: uid(), text: t, due: $("#t-due").value || null, priority: $("#t-pri").value, done: false, createdTs: Date.now() });
+      log("task", "Task added: " + trunc(t, 60)); save(); render(); toast("Task added"); var n = $("#t-text"); if (n) n.focus();
+    });
+    var sf = $("#settings-form"); if (sf) sf.addEventListener("submit", function (e) {
+      e.preventDefault();
+      ["yourName", "businessName", "tone", "vipSenders", "urgentKeywords"].forEach(function (k) { S.settings[k] = sf[k].value.trim(); });
+      S.settings.autoProcess = sf.autoProcess.checked;
+      S.emails.forEach(function (em) { if (em.analysis) { em.analysis = E.analyze(em, S.settings); if (em.draft == null) em.tone = null; } });
+      log("settings", "Settings updated — inbox re-analysed"); save(); render(); toast("Saved. " + processed().length + " emails re-analysed with your settings.");
+    });
+    var q = $("#inbox-q"); if (q) q.addEventListener("input", function () { ui.query = q.value; var pos = q.selectionStart; render(); var nq = $("#inbox-q"); if (nq) { nq.focus(); try { nq.setSelectionRange(pos, pos); } catch (er) { /* */ } } });
+    $$("textarea[data-draft]").forEach(function (ta) { ta.addEventListener("input", function () { var em = email(ta.getAttribute("data-draft")); if (em) { em.draft = ta.value; save(); } }); });
+    $$("select[data-act=override]").forEach(function (sel) { sel.addEventListener("change", function () {
+      var em = email(sel.getAttribute("data-id")); em.analysis.priority = sel.value; em.analysis.reasons = ["Manually set by you"].concat(em.analysis.reasons.filter(function (r) { return r !== "Manually set by you"; }));
+      S.tasks.forEach(function (t) { if (t.emailId === em.id) t.priority = sel.value; });
+      log("process", "Priority changed to " + sel.value + ": “" + trunc(em.subject, 50) + "”"); save(); render(); toast("Priority set to " + sel.value);
+    }); });
+  }
+
+  /* ---------------- Actions ---------------- */
+  function onClick(ev) {
+    var el = ev.target.closest("[data-act]"); if (!el) return;
+    var act = el.getAttribute("data-act"), id = el.getAttribute("data-id");
+    if (el.tagName === "SELECT" || (el.tagName === "INPUT" && el.type !== "checkbox")) return;
+    var em = id && email(id);
+    switch (act) {
+      case "nav": var to = el.getAttribute("data-to").split(":"); if (to[0] === "inbox") ui.filter = to[1] || "all"; if (to[0] === "tasks") ui.taskTab = to[1] === "done" ? "done" : "open"; go(to[0]); break;
+      case "open": ev.preventDefault(); openEmail(id); break;
+      case "close-detail": ui.selected = null; render(); break;
+      case "filter": ui.filter = el.getAttribute("data-f"); ui.selected = null; render(); break;
+      case "simulate": simulate(); break;
+      case "process": case "reanalyse": processEmail(em, act === "reanalyse"); break;
+      case "archive": em.status = "archived"; log("process", "Archived: “" + trunc(em.subject, 50) + "”"); ui.selected = null; save(); render(); toast("Email archived", "Undo", function () { em.status = "new"; save(); render(); }); break;
+      case "mark-read": em.read = true; save(); render(); toast("Marked as read"); break;
+      case "toggle-read": em.read = !em.read; save(); render(); break;
+      case "add-tasks": var n = addTasksFrom(em); save(); render(); toast(n ? n + " task" + (n > 1 ? "s" : "") + " added to your list" : "Tasks are already on your list"); break;
+      case "accept-event-email": acceptEmailEvent(em); break;
+      case "focus-draft": var ta = $("#draft-" + id); if (ta) { ta.scrollIntoView({ behavior: "smooth", block: "center" }); ta.focus(); } break;
+      case "tone":
+        var target = em || (ui.analyzeResult && ui.analyzeResult.e.id === id ? ui.analyzeResult.e : null);
+        if (!target) break; target.tone = el.getAttribute("data-tone"); target.draft = E.draft(target, target.analysis, target.tone, S.settings);
+        if (em) save(); refreshDraft(target); break;
+      case "regen":
+        var tg = em || (ui.analyzeResult && ui.analyzeResult.e);
+        tg.draft = E.draft(tg, tg.analysis, tg.tone || S.settings.tone, S.settings); if (em) save(); refreshDraft(tg); toast("Draft regenerated"); break;
+      case "copy-draft": copy(($("#draft-" + id) || {}).value || "", "Draft copied"); break;
+      case "approve": approve(em); break;
+      case "override": break;
+      case "example": var x = window.DEMO_EXAMPLES[+el.getAttribute("data-i")]; ui.analyzeInput = { from: x.from, email: x.email, subject: x.subject, body: x.body }; ui.analyzeResult = null; render(); $("#a-body").focus(); break;
+      case "clear-analyze": ui.analyzeInput = null; ui.analyzeResult = null; render(); break;
+      case "add-to-inbox": addAnalyzedToInbox(); break;
+      case "task-tab": ui.taskTab = el.getAttribute("data-tab"); render(); break;
+      case "toggle-task": toggleTask(id, el.checked); break;
+      case "delete-task": S.tasks = S.tasks.filter(function (t) { return t.id !== id; }); save(); render(); toast("Task deleted"); break;
+      case "fu-draft": followupModal(id); break;
+      case "fu-snooze": var f = fu(id); f.due = iso(E.addDays(new Date(), 2)); log("followup", "Follow-up with " + f.contact + " snoozed to " + fmt(f.due)); save(); render(); toast("Snoozed until " + fmt(f.due)); break;
+      case "fu-done": var f2 = fu(id); f2.status = "done"; log("followup", f2.contact + " replied — follow-up resolved"); save(); render(); toast("Follow-up resolved"); break;
+      case "week": var d = +el.getAttribute("data-d"); ui.weekOffset = d === 0 ? 0 : ui.weekOffset + d; render(); break;
+      case "new-event": eventModal(); break;
+      case "ev-accept": var e1 = evById(id); var c = findConflict(e1, e1.id); e1.status = "confirmed"; log("calendar", "Meeting added: " + e1.title); save(); render(); toast("Added to calendar" + (c ? " — note: clashes with “" + c.title + "”" : "")); break;
+      case "ev-dismiss": S.events = S.events.filter(function (x) { return x.id !== id; }); save(); render(); toast("Suggestion dismissed"); break;
+      case "ev-delete": S.events = S.events.filter(function (x) { return x.id !== id; }); save(); render(); toast("Event removed"); break;
+      case "copy-brief": copy(briefText(), "Briefing copied"); break;
+      case "regen-brief": log("process", "Daily briefing regenerated"); save(); render(); toast("Briefing refreshed"); break;
+      case "reset": confirmModal("Reset demo data?", "This restores the original fictional inbox, tasks and calendar. Your changes in this browser will be lost.", "Reset", function () { try { localStorage.removeItem(KEY); } catch (e) { /* */ } seed(); ui.selected = null; ui.analyzeResult = null; render(); toast("Demo data reset"); }); break;
+      case "close-modal": closeModal(); break;
+      case "menu": openMenu(); break;
+    }
+  }
+  function fu(id) { return S.followups.filter(function (f) { return f.id === id; })[0]; }
+  function evById(id) { return S.events.filter(function (e) { return e.id === id; })[0]; }
+  function openEmail(id) {
+    var em = email(id); if (!em) return;
+    ui.selected = id; em.read = true;
+    if (em.status === "archived") em.status = "new";
+    var f = FILTERS.filter(function (x) { return x.id === ui.filter; })[0];
+    if (f && !f.test(em)) ui.filter = "all";
+    save();
+    if (ui.view !== "inbox") { location.hash = "inbox"; } else { render(); }
+    if (window.innerWidth < 1150) window.scrollTo(0, 0);
+  }
+  function refreshDraft(target) {
+    var ta = $("#draft-" + target.id); if (ta) { ta.value = target.draft; ta.classList.add("flash"); setTimeout(function () { ta.classList.remove("flash"); }, 1600); }
+    $$('[data-act=tone][data-id="' + target.id + '"]').forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-tone") === target.tone); });
+  }
+  function approve(em) {
+    var ta = $("#draft-" + em.id), text = ta ? ta.value.trim() : "";
+    if (!text) { toast("The reply is empty — write or regenerate a draft first."); return; }
+    em.status = "replied"; em.sentAt = Date.now(); em.draft = text;
+    S.followups.push({ id: uid(), contact: em.from, org: em.org, topic: "Your reply to “" + trunc(em.subject, 60) + "”", sentTs: Date.now(), due: iso(E.bizDays(new Date(), 3)), status: "waiting", emailId: em.id });
+    S.tasks.forEach(function (t) { if (t.emailId === em.id && /^(reply to|respond to|offer|confirm new meeting)/i.test(t.text)) { t.done = true; t.doneTs = Date.now(); } });
+    log("sent", "Reply approved and sent to " + em.from + " (simulated)");
+    save(); render(); toast("Reply sent to " + em.from + " (simulated). Follow-up set for " + fmt(iso(E.bizDays(new Date(), 3))) + ".");
+  }
+  function acceptEmailEvent(em) {
+    var ev = em.analysis.event; if (!ev) { toast("No meeting detected in this email."); return; }
+    var existing = S.events.filter(function (x) { return x.emailId === em.id; })[0];
+    var conflict = findConflict(ev, existing && existing.id);
+    if (existing) { existing.status = "confirmed"; existing.date = ev.date; existing.time = ev.time; existing.title = ev.title; }
+    else S.events.push(Object.assign({ id: uid(), status: "confirmed", emailId: em.id }, ev));
+    S.tasks.forEach(function (t) { if (t.emailId === em.id && /meeting|calendar/i.test(t.text)) { t.done = true; t.doneTs = Date.now(); } });
+    log("calendar", "Meeting added: " + ev.title); save(); render();
+    toast("Added: " + fmt(ev.date) + " at " + fmtTime(ev.time) + (conflict ? " — clashes with “" + conflict.title + "”" : ""));
+  }
+  function toggleTask(id, done) {
+    var t = S.tasks.filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    t.done = done; t.doneTs = done ? Date.now() : null;
+    if (done) log("task", "Task completed: " + trunc(t.text, 60));
+    save();
+    var li = $("#task-" + id); if (li) li.classList.toggle("done", done);
+    setTimeout(function () { render(); }, 350);
+    toast(done ? "Task completed" : "Task reopened", done ? "Undo" : null, function () { t.done = false; t.doneTs = null; save(); render(); });
+  }
+  function processEmail(em, re) {
+    var btn = $('[data-act="' + (re ? "reanalyse" : "process") + '"][data-id="' + em.id + '"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner' + (re ? " spinner--dark" : "") + '"></span> Analysing…'; }
+    return new Promise(function (r) { setTimeout(r, reduced() ? 50 : 900); }).then(function () { return runAnalysis(em); }).then(function (a) {
+      em.analysis = a; em.draft = null; em.tone = null;
+      addTasksFrom(em, true);
+      if (a.event && !S.events.some(function (x) { return x.emailId === em.id; })) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, a.event));
+      log(a.priority === "Urgent" ? "alert" : "process", "Analysed: “" + trunc(em.subject, 50) + "” → " + a.priority + " · " + a.category);
+      save(); render();
+      return a;
+    });
+  }
+  function simulate() {
+    var pool = window.DEMO_INCOMING, src = pool[S.incomingIdx % pool.length]; S.incomingIdx++;
+    var em = { id: "n" + uid(), from: src.from, email: src.email, org: src.org, subject: src.subject, body: src.body, ts: Date.now(), read: false, status: "new", draft: null, tone: null, analysis: null };
+    S.emails.push(em); log("new", "New email from " + em.from + ": “" + trunc(em.subject, 50) + "”"); save();
+    if (S.settings.autoProcess) {
+      render(); toast("New email from " + em.from + " — analysing…");
+      setTimeout(function () { runAnalysis(em).then(function (a) {
+        em.analysis = a; addTasksFrom(em, true);
+        if (a.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, a.event));
+        log(a.priority === "Urgent" ? "alert" : "process", "Analysed: “" + trunc(em.subject, 50) + "” → " + a.priority + " · " + a.category);
+        save(); render(); toast(a.priority + " · " + a.category + ": " + trunc(em.subject, 50), "Open", function () { openEmail(em.id); });
+      }); }, reduced() ? 50 : 1100);
+    } else { render(); toast("New email from " + em.from + " (not analysed yet)", "Open", function () { openEmail(em.id); }); }
+  }
+  function addAnalyzedToInbox() {
+    var r = ui.analyzeResult; if (!r) return;
+    var em = r.e; em.id = "u" + uid(); em.read = false; em.ts = Date.now();
+    var ta = $("textarea[data-draft]"); em.draft = ta ? ta.value : null;
+    S.emails.push(em); addTasksFrom(em, true);
+    if (em.analysis.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, em.analysis.event));
+    log("new", "Test email added to Smart Inbox: “" + trunc(em.subject, 50) + "”");
+    ui.analyzeResult = null; ui.analyzeInput = null; save(); openEmail(em.id); toast("Added to Smart Inbox with its tasks and suggestions");
+  }
+
+  /* ---------------- Modals ---------------- */
+  var lastFocus = null;
+  function openModal(html) {
+    lastFocus = document.activeElement;
+    var m = $("#modal"); m.innerHTML = '<div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="modal-title">' + html + "</div>"; m.hidden = false;
+    var f = m.querySelector("input, textarea, select, button"); if (f) f.focus();
+  }
+  function closeModal() { var m = $("#modal"); m.hidden = true; m.innerHTML = ""; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  function confirmModal(title, text, okLabel, onOk) {
+    openModal('<h2 id="modal-title">' + esc(title) + '</h2><p class="muted">' + esc(text) + '</p><div class="btn-row" style="justify-content:flex-end"><button class="btn" data-act="close-modal">Cancel</button><button class="btn btn--primary" id="modal-ok">' + esc(okLabel) + "</button></div>");
+    $("#modal-ok").addEventListener("click", function () { closeModal(); onOk(); });
+  }
+  function followupModal(id) {
+    var f = fu(id), text = E.followupDraft(f, S.settings);
+    openModal('<h2 id="modal-title">Follow up with ' + esc(f.contact) + '</h2><p class="small muted">Re: ' + esc(f.topic) + '</p><label class="sr-only" for="fu-text">Follow-up email</label><textarea class="draft" id="fu-text">' + esc(text) + '</textarea><p class="hint">Sending is simulated in this demo.</p><div class="btn-row" style="justify-content:flex-end"><button class="btn" data-act="close-modal">Cancel</button><button class="btn btn--primary" id="fu-send">' + ic("send") + " Approve &amp; send</button></div>");
+    $("#fu-send").addEventListener("click", function () {
+      f.sentTs = Date.now(); f.nudges = (f.nudges || 0) + 1; f.due = iso(E.bizDays(new Date(), 3));
+      log("followup", "Follow-up sent to " + f.contact + " (simulated)"); save(); closeModal(); render(); toast("Follow-up sent to " + f.contact + ". Next check: " + fmt(f.due));
+    });
+  }
+  function eventModal() {
+    openModal('<h2 id="modal-title">New event</h2><form class="form" id="ev-form" novalidate><div class="field"><label for="ev-title">Title</label><input id="ev-title" required maxlength="80" placeholder="e.g. Client call"></div><div class="field-row"><div class="field"><label for="ev-date">Date</label><input id="ev-date" type="date" required value="' + iso(E.addDays(new Date(), 1)) + '"></div><div class="field"><label for="ev-time">Time</label><input id="ev-time" type="time" required value="10:00"></div></div><div class="btn-row" style="justify-content:flex-end"><button type="button" class="btn" data-act="close-modal">Cancel</button><button class="btn btn--primary" type="submit">Add event</button></div></form>');
+    $("#ev-form").addEventListener("submit", function (e) {
+      e.preventDefault(); var t = $("#ev-title").value.trim(); if (!t) { $("#ev-title").focus(); return; }
+      var ev = { id: uid(), title: t, date: $("#ev-date").value, time: $("#ev-time").value, kind: "internal", status: "confirmed" };
+      var c = findConflict(ev, ev.id); S.events.push(ev); log("calendar", "Event added: " + t); save(); closeModal(); render(); toast("Event added" + (c ? " — clashes with “" + c.title + "”" : ""));
+    });
+  }
+
+  /* ---------------- Toast & clipboard ---------------- */
+  function toast(msg, actionLabel, onAction) {
+    var box = $("#toasts"), t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+    t.innerHTML = ic("check") + "<span>" + esc(msg) + "</span>" + (actionLabel ? "<button type=\"button\">" + esc(actionLabel) + "</button>" : "");
+    if (actionLabel) t.querySelector("button").addEventListener("click", function () { t.remove(); onAction(); });
+    box.appendChild(t); setTimeout(function () { t.remove(); }, actionLabel ? 6000 : 3600);
+    while (box.children.length > 3) box.firstChild.remove();
+  }
+  function copy(text, ok) {
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast(ok); } catch (e) { toast("Copy isn't available here — select the text manually."); } ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(ok); }, fallback); else fallback();
+  }
+
+  /* ---------------- Mobile menu ---------------- */
+  function openMenu() { $("#side").classList.add("is-open"); $("#scrim").hidden = false; $("#menu-btn").setAttribute("aria-expanded", "true"); }
+  function closeMenu() { var s = $("#side"); if (!s) return; s.classList.remove("is-open"); $("#scrim").hidden = true; $("#menu-btn").setAttribute("aria-expanded", "false"); }
+
+  /* ---------------- Boot ---------------- */
+  function boot() {
+    S = load(); if (!S) seed();
+    document.addEventListener("click", onClick);
+    document.addEventListener("change", function (e) { if (e.target.matches('input[type=checkbox][data-act="toggle-task"]')) { /* handled in click */ } });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { if (!$("#modal").hidden) closeModal(); else closeMenu(); }
+      if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { var s = $("#global-q"); if (s && s.offsetParent) { e.preventDefault(); s.focus(); } }
+    });
+    $("#modal").addEventListener("click", function (e) { if (e.target.id === "modal") closeModal(); });
+    $("#scrim").addEventListener("click", closeMenu);
+    $("#global-q").addEventListener("input", function (e) { ui.query = e.target.value; ui.selected = null; if (ui.view !== "inbox") go("inbox"); else render(); });
+    $("#btn-sim").addEventListener("click", simulate);
+    $("#note-close").addEventListener("click", function () { $("#demo-note").hidden = true; try { sessionStorage.setItem("eaNote", "1"); } catch (e) { /* */ } });
+    try { if (sessionStorage.getItem("eaNote")) $("#demo-note").hidden = true; } catch (e) { /* */ }
+    if (CFG.websiteUrl) $("#back-site").href = CFG.websiteUrl;
+    if (CFG.contactUrl) $("#cta-book").href = CFG.contactUrl;
+    window.addEventListener("hashchange", onHash);
+    onHash();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})();

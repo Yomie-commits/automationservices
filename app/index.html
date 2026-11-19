@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Executive Assistant — Live Demo | Naomi Mwangi AI Automation Services</title>
+<meta name="description" content="Try an interactive AI Executive Assistant demo: a smart inbox that summarises, prioritises and extracts tasks, deadlines and meetings from email, drafts replies for approval and prepares a daily briefing.">
+<link rel="canonical" href="https://yomie-commits.github.io/automationservices/app/">
+<meta name="theme-color" content="#f7f5f1">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AI Executive Assistant — Interactive Demo">
+<meta property="og:description" content="A smart inbox that summarises, prioritises and turns email into tasks, deadlines and meetings — with replies drafted for your approval.">
+<meta property="og:url" content="https://yomie-commits.github.io/automationservices/app/">
+<meta property="og:image" content="https://yomie-commits.github.io/automationservices/assets/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<div class="app">
+  <aside class="side" id="side" aria-label="Main navigation">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">EA</span>
+      <span><span class="brand__name">Executive Assistant</span><br><span class="brand__sub">AI automation · Demo workspace</span></span>
+    </div>
+    <nav><ul class="nav" id="nav"></ul></nav>
+    <div class="side__foot">
+      <div class="engine-card">
+        <b><span class="dot" id="engine-dot"></span><span id="engine-name">Demonstration engine</span></b>
+        <span id="engine-desc">Rule-based analysis running in your browser.</span>
+      </div>
+      <a class="btn btn--navy" id="cta-book" href="../contact.html#consultation">Book a consultation</a>
+      <a class="side__back" id="back-site" href="../index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to website</a>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" data-act="menu" aria-label="Open navigation" aria-controls="side" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="topbar__title"><h1 id="page-title">Overview</h1><p id="page-sub"></p></div>
+      <div class="topbar__search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <label class="sr-only" for="global-q">Search emails</label>
+        <input id="global-q" type="search" placeholder="Search emails  ( / )" autocomplete="off">
+      </div>
+      <button class="btn btn--sm" id="btn-sim" type="button" title="Simulate a new incoming email">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>New email</span>
+      </button>
+      <a class="btn btn--primary btn--sm" href="#analyze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg><span>Analyse</span></a>
+      <span class="avatar" id="avatar" aria-hidden="true">NM</span>
+    </header>
+
+    <div class="demo-note" id="demo-note" role="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span><b>Interactive demonstration.</b> All emails, people and companies are fictional. Analysis is performed by a clearly labelled demonstration engine in your browser — no real inbox is connected and nothing is sent.</span>
+      <button class="btn btn--ghost btn--xs" id="note-close" type="button">Dismiss</button>
+    </div>
+
+    <main class="view" id="view" tabindex="-1" aria-live="polite"></main>
+  </div>
+</div>
+<div class="modal" id="modal" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<noscript><p style="padding:2rem;text-align:center">This interactive demo needs JavaScript enabled.</p></noscript>
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

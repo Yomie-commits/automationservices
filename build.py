@@ -104,7 +104,7 @@ def header(current):
     <div class="nav__menu" id="nav-menu">
       <ul class="nav__links">{links}</ul>
       <div class="nav__cta">
-        <a class="btn btn--ghost btn--sm" href="demo.html" data-demo>{ic("play")}Live Demo</a>
+        <a class="btn btn--ghost btn--sm" href="app/" data-demo>{ic("play")}Live Demo</a>
         <a class="btn btn--primary btn--sm" href="contact.html#consultation" data-book>Book a Consultation</a>
       </div>
     </div>
@@ -141,7 +141,7 @@ def footer():
           <li><a href="about.html">About</a></li>
           <li><a href="how-it-works.html">How It Works</a></li>
           <li><a href="pricing.html">Pricing</a></li>
-          <li><a href="demo.html" data-demo>Live Demo</a></li>
+          <li><a href="app/" data-demo>Live Demo</a></li>
           <li><a href="privacy.html">Privacy Notice</a></li>
         </ul>
       </div>
@@ -375,7 +375,7 @@ def build_home():
       <h1>Work Smarter. Automate More. <span class="accent">Focus on Growth.</span></h1>
       <p class="hero__text">We help businesses simplify everyday operations through intelligent AI-powered automation. From managing emails and client enquiries to tracking tasks and follow-ups, we build systems that give you more time to focus on what matters.</p>
       <div class="btn-row">
-        <a class="btn btn--primary" href="demo.html" data-demo>{ic("play")} View Live Demo</a>
+        <a class="btn btn--primary" href="app/" data-demo>{ic("play")} View Live Demo</a>
         <a class="btn btn--ghost" href="contact.html#consultation" data-book>Book a Consultation {ic("arrow")}</a>
       </div>
       <div class="hero__note">
@@ -445,7 +445,7 @@ def build_home():
         <li>Generates a daily briefing of what needs attention</li>
       </ul>
       <div class="btn-row mt-2">
-        <a class="btn btn--primary" href="demo.html" data-demo>{ic("play")} Try the interactive demo</a>
+        <a class="btn btn--primary" href="app/" data-demo>{ic("play")} Try the interactive demo</a>
         <a class="btn btn--outline" href="ai-executive-assistant.html">How it works {ic("arrow")}</a>
       </div>
     </div>
@@ -629,7 +629,7 @@ def build_product():
     body = f'''
 {page_hero("AI Executive Assistant", "Featured product", "The AI Executive Assistant System",
   "An intelligent assistant system that keeps your inbox under control: it summarises and prioritises email, extracts tasks, drafts replies, tracks follow-ups and briefs you every morning — with you approving every important action.",
-  f'<a class="btn btn--primary" href="demo.html" data-demo>{ic("play")} Launch the interactive demo</a><a class="btn btn--ghost" href="contact.html#consultation" data-book>Book a Consultation</a>')}
+  f'<a class="btn btn--primary" href="app/" data-demo>{ic("play")} Launch the interactive demo</a><a class="btn btn--ghost" href="contact.html#consultation" data-book>Book a Consultation</a>')}
 
 <section class="section">
   <div class="container">
@@ -658,7 +658,7 @@ def build_product():
       <span class="eyebrow">Interactive demonstration</span>
       <h2>See it working before you commit</h2>
       <p class="lead">Explore a sample inbox and watch the assistant summarise emails, set priorities, extract tasks, draft replies, log everything to a tracker and generate a daily briefing.</p>
-      <a class="btn btn--primary" href="demo.html" data-demo>{ic("play")} Open the live demo</a>
+      <a class="btn btn--primary" href="app/" data-demo>{ic("play")} Open the live demo</a>
     </div>
     <div class="feature-panel reveal">
       <h3 style="color:#fff">Included in every assistant setup</h3>
@@ -1015,87 +1015,16 @@ def build_contact():
          extra_scripts="<script>(function(){var d=document.getElementById('c-date');if(d){var t=new Date();t.setDate(t.getDate()+1);d.min=t.toISOString().slice(0,10);}})();</script>")
 
 
-def build_demo():
-    pipes = [("mail", "Gmail"), ("zap", "Make.com"), ("brain", "AI processing"), ("sheet", "Sheets / Calendar"), ("hand", "Your approval")]
-    pipehtml = '<span class="pipe-arrow" aria-hidden="true">→</span>'.join(f'<span class="pipe">{ic(i)}{t}</span>' for i, t in pipes)
-    navs = [("inbox", "inbox", "Inbox"), ("sent", "mail", "Sent"), ("tasks", "check", "Tasks"), ("calendar", "cal", "Calendar"),
-            ("tracker", "sheet", "Tracker"), ("briefing", "sun", "Daily briefing"), ("log", "list", "Execution log"), ("settings", "cog", "Settings")]
-    navhtml = ""
-    for i, (v, icn, lbl) in enumerate(navs):
-        if v == "briefing": navhtml += "<hr>"
-        navhtml += f'<button type="button" role="tab" data-view="{v}" aria-selected="false" aria-controls="view">{ic(icn)}{lbl}<span class="count" hidden></span></button>'
-    body = f'''
-<div class="demo-banner" role="note">{ic("alert")}<span><strong>Interactive demo.</strong> Write or paste any email and watch the assistant handle it. Everything runs in your browser — no real email is read or sent, and your demo data stays on this device.</span></div>
-<section class="page-hero" style="padding:3rem 0 2.6rem">
-  <div class="container">
-    <p class="breadcrumb"><a href="index.html">Home</a> / <a href="ai-executive-assistant.html">AI Assistant</a> / Live demo</p>
-    <span class="eyebrow">Live demo</span>
-    <h1>Try the AI Executive Assistant</h1>
-    <p>Process the sample inbox, simulate new emails arriving, or write your own. The assistant summarises and prioritises each email, extracts tasks, checks your calendar, drafts a reply for your approval and logs everything to a tracker.</p>
-    <div class="btn-row mt-2"><a class="btn btn--primary" href="#demo-app">{ic("play")} Start the demo</a></div>
-  </div>
-</section>
-<section class="section section--soft" style="padding-top:2.2rem">
-  <div class="container" style="width:min(100% - 1.5rem, 1320px)">
-    <div class="grid grid--3 mb-0" style="margin-bottom:1.2rem">
-      <div class="industry">{icon_box("inbox")}<div><h4>1. Bring in an email</h4><p>Use the sample inbox, click <strong>Simulate incoming</strong>, or write your own with <strong>New email</strong>.</p></div></div>
-      <div class="industry">{icon_box("brain")}<div><h4>2. Watch it work</h4><p>Follow each step in the pipeline: summary, priority, tasks, calendar check and a draft reply.</p></div></div>
-      <div class="industry">{icon_box("hand")}<div><h4>3. You decide</h4><p>Edit the draft, change its tone, approve or reject it, add events to the calendar and tick off tasks.</p></div></div>
-    </div>
-
-    <div class="app" id="demo-app" style="scroll-margin-top:90px">
-      <div class="app__top">
-        <div class="app__title"><span class="brand__mark" aria-hidden="true">{INITIALS}</span> AI Executive Assistant <span class="tag" style="background:rgba(255,255,255,.1);color:#cdd6ee">Demo</span></div>
-        <div class="app__actions">
-          <label class="switch"><input type="checkbox" id="auto-toggle"><span class="switch__track" aria-hidden="true"></span>Auto-process</label>
-          <button type="button" class="btn btn--primary btn--sm" data-act="compose">{ic("pen")} New email</button>
-          <button type="button" class="btn btn--outline btn--sm" data-act="simulate">{ic("inbox")} Simulate incoming</button>
-          <button type="button" class="btn btn--outline btn--sm" data-act="process-all" id="btn-process-all">{ic("zap")} Process all</button>
-        </div>
-      </div>
-      <div class="app__pipe">
-        <div class="pipeline" aria-label="Automation pipeline">{pipehtml}</div>
-        <div class="ticker" id="ticker" aria-live="polite"></div>
-      </div>
-      <div class="app__stats">
-        <div><b id="st-processed">0</b><small>Emails processed</small></div>
-        <div><b id="st-high">0</b><small>High priority</small></div>
-        <div><b id="st-tasks">0</b><small>Open tasks</small></div>
-        <div><b id="st-drafts">0</b><small>Drafts to approve</small></div>
-        <div><b id="st-saved">0</b><small>Est. time saved*</small></div>
-      </div>
-      <div class="app__body">
-        <nav class="app__nav" role="tablist" aria-label="Assistant views">{navhtml}</nav>
-        <div class="view" id="view" role="tabpanel" aria-live="off"></div>
-      </div>
-
-      <dialog id="compose" aria-labelledby="compose-title">
-        <form id="compose-form" novalidate>
-          <div class="dlg__head"><h3 id="compose-title">New email to your inbox</h3><button type="button" class="dlg__close" data-close aria-label="Close">×</button></div>
-          <div class="dlg__body">
-            <div><p class="small muted mb-0" style="margin-bottom:.4rem">Start from an example, or write your own:</p><div class="examples" id="compose-examples"></div></div>
-            <div class="form-grid">
-              <div class="field"><label for="c-from">Sender name</label><input id="c-from" maxlength="60" placeholder="e.g. Jane Wairimu"></div>
-              <div class="field"><label for="c-addr">Sender email</label><input id="c-addr" type="email" maxlength="80" placeholder="jane@example.com"></div>
-              <div class="field full"><label for="c-subj">Subject <span class="req">*</span></label><input id="c-subj" maxlength="140" required></div>
-              <div class="field full"><label for="c-body">Message <span class="req">*</span></label><textarea id="c-body" rows="7" maxlength="4000" required placeholder="Try mentioning a deadline, a meeting time, an invoice or a question…"></textarea></div>
-            </div>
-            <p class="form-status form-status--err" id="compose-err" hidden style="display:block">Please add a subject and a message.</p>
-          </div>
-          <div class="dlg__foot"><button type="button" class="btn btn--outline btn--sm" data-close>Cancel</button><button type="submit" class="btn btn--primary btn--sm">{ic("mail")} Send to inbox</button></div>
-        </form>
-      </dialog>
-    </div>
-    <p class="how-note mt-1">*Estimate for illustration only, assuming about 3 minutes saved per email triaged and 4 minutes per reply drafted. This demo uses a built-in rules engine in place of the AI model so it can run privately in your browser; real deployments use an AI language model through Make.com.</p>
-  </div>
-</section>
-{cta_band("Want this running on your real inbox?", "Book a consultation and I'll show you how the assistant would work with your email, tools and processes.")}
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+def build_demo_redirect():
+    """demo.html now forwards to the full demo app in /app/ so old links keep working."""
+    html = f'''<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Live Demo — AI Executive Assistant | {BRAND}</title>
+<meta name="robots" content="noindex, follow"><link rel="canonical" href="{SITE_URL}/app/">
+<meta http-equiv="refresh" content="0; url=app/"><script>location.replace("app/" + location.hash);</script></head>
+<body><p>The live demo has moved to <a href="app/">the AI Executive Assistant demo app</a>.</p></body></html>
 '''
-    page("demo.html",
-         f"Live Demo — AI Executive Assistant | {BRAND}",
-         "Try a fully interactive AI Executive Assistant demo: write your own emails and see them summarised, prioritised, turned into tasks, scheduled and answered with draft replies for approval.",
-         body, extra_scripts='<script src="assets/js/demo-engine.js"></script>\n<script src="assets/js/demo.js"></script>')
+    with open(os.path.join(OUT, "demo.html"), "w", encoding="utf-8") as f:
+        f.write(html)
 
 
 def build_misc():
@@ -1107,7 +1036,7 @@ def build_misc():
     <p style="margin-inline:auto">I'll review your details and reply within one working day. If your request is urgent, message me on WhatsApp.</p>
     <div class="btn-row justify-center mt-2">
       <a class="btn btn--whatsapp" href="contact.html" data-wa>{WA_SVG} WhatsApp</a>
-      <a class="btn btn--ghost" href="demo.html" data-demo>{ic("play")} Explore the live demo</a>
+      <a class="btn btn--ghost" href="app/" data-demo>{ic("play")} Explore the live demo</a>
       <a class="btn btn--ghost" href="index.html">Back to home</a>
     </div>
   </div>
@@ -1151,7 +1080,7 @@ def build_misc():
 
 def build_seo_files():
     pages = [("", "1.0", "weekly"), ("services.html", "0.9", "monthly"), ("ai-executive-assistant.html", "0.9", "monthly"),
-             ("demo.html", "0.8", "monthly"), ("how-it-works.html", "0.7", "monthly"), ("pricing.html", "0.9", "monthly"),
+             ("app/", "0.9", "monthly"), ("how-it-works.html", "0.7", "monthly"), ("pricing.html", "0.9", "monthly"),
              ("about.html", "0.7", "monthly"), ("contact.html", "0.8", "monthly"), ("privacy.html", "0.3", "yearly")]
     today = datetime.date.today().isoformat()
     urls = "".join(f"  <url><loc>{SITE_URL}/{p}</loc><lastmod>{today}</lastmod><changefreq>{c}</changefreq><priority>{pr}</priority></url>\n" for p, pr, c in pages)
@@ -1163,5 +1092,5 @@ def build_seo_files():
 
 if __name__ == "__main__":
     build_home(); build_services(); build_product(); build_process(); build_pricing()
-    build_about(); build_contact(); build_demo(); build_misc(); build_seo_files()
+    build_about(); build_contact(); build_demo_redirect(); build_misc(); build_seo_files()
     print("Site built in", OUT)

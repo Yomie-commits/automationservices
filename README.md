@@ -10,7 +10,7 @@ Plain HTML, CSS and JavaScript — no frameworks, no build step, free to host.
 | Home | `index.html` |
 | Services (6 detailed services) | `services.html` |
 | Featured product — AI Executive Assistant | `ai-executive-assistant.html` |
-| Interactive live demo | `demo.html` |
+| AI Executive Assistant demo app | `app/` (`demo.html` redirects here) |
 | How It Works (7-step process) | `how-it-works.html` |
 | Pricing (Starter / Professional / Business + maintenance) | `pricing.html` |
 | About | `about.html` |
@@ -94,7 +94,7 @@ Both forms include validation, a spam honeypot, a consent checkbox and a redirec
 - [ ] Email links show your address
 - [ ] Enquiry form → thank-you page → submission received
 - [ ] Consultation form → thank-you page → submission received
-- [ ] Live demo: "Process entire inbox", approve a draft, "Generate daily briefing"
+- [ ] Demo app: open an email, approve a draft, analyse an example email, accept a calendar suggestion, open the daily briefing
 - [ ] Share the home page link on WhatsApp/LinkedIn and check the preview image
 
 ## 5. SEO after launch
@@ -107,4 +107,22 @@ Both forms include validation, a spam honeypot, a consent checkbox and a redirec
 - Header, footer, page titles/descriptions or structured data across all pages: edit `build.py` and run `python3 build.py`.
   *(Running `build.py` regenerates the HTML files, so if you use it, make your text edits in `build.py` rather than the HTML files.)*
 - Colours and fonts: the variables at the top of `assets/css/styles.css`.
-- Demo emails: the `EMAILS` list in `assets/js/demo.js`.
+- Demo data (emails, events, follow-ups, examples): `app/data.js`.
+
+## 7. The AI Executive Assistant demo app (`app/`)
+
+A standalone, SaaS-style demo you can share with clients: `https://YOUR-SITE/app/`
+
+| Section | What visitors can do |
+|---|---|
+| Overview | KPIs (emails processed, important emails, pending tasks, deadlines, follow-ups, tasks completed), what needs attention, recent activity, category and priority charts, today's schedule |
+| Smart Inbox | Filters (All, Urgent, Important, Requires response, Meetings, General information), search, per-email summary and recommended action |
+| Email analysis | Summary, intent + confidence, priority with reasons (and manual override), extracted people/organisations/amounts/references/dates/locations, deadlines, recommended action, tasks, calendar suggestion with clash detection, suggested reply in three tones — approve & send (simulated) |
+| Analyse an email | Write or paste a fictional email (or pick an example), watch the pipeline run, view the structured JSON output, add it to the inbox |
+| Tasks, Follow-ups, Calendar, Daily briefing, Settings | Complete/add/delete tasks, draft and send follow-ups, accept/dismiss meeting suggestions, add events, copy the briefing, set VIP senders, urgent keywords and default tone |
+
+Files: `app/index.html`, `app/app.css`, `app/app.js` (interface), `app/engine.js` (analysis), `app/data.js` (fictional data), `app/config.js` (settings).
+
+**Demonstration engine.** By default analysis is done by a transparent, rule-based engine in the visitor's browser and the interface labels it clearly — no AI service is called and nothing leaves the page. Each visitor's changes are saved in their own browser; *Settings → Reset demo data* restores the original.
+
+**Connecting a real AI model (optional).** Set `aiEndpoint` in `app/config.js` to your own server-side endpoint — for example a Make.com webhook scenario that calls an AI model. It receives `POST {from, email, subject, body}` and should return JSON with any of: `category`, `intent`, `confidence`, `priority` (Urgent/Important/Normal/Low), `reasons`, `requiresResponse`, `summary`, `shortSummary`, `entities`, `deadlines`, `tasks`, `event`, `action`, `responseTime`. Missing fields fall back to the demo engine, and the interface switches its label to the live endpoint. **Never put an AI API key in the website files** — they are public.
