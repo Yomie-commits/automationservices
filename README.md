@@ -34,7 +34,7 @@ Open it in any text editor and change:
 No rebuild is needed after editing this file.
 
 ### b) Your domain → `build.py` (or find-and-replace)
-Your pages contain `https://your-site.netlify.app` in their SEO tags. Once you know your real address, either:
+Your pages currently use `https://yomie-commits.github.io/automationservices` in their SEO tags. If you move to Netlify or a custom domain, Once you know your real address, either:
 
 - **Option A:** change `SITE_URL` at the top of `build.py`, then run `python3 build.py`, **or**
 - **Option B:** in VS Code use *Edit → Replace in Files* to replace `https://your-site.netlify.app` with your address across all files.
