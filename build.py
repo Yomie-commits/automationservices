@@ -657,7 +657,7 @@ def build_product():
     <div class="reveal">
       <span class="eyebrow">Interactive demonstration</span>
       <h2>See it working before you commit</h2>
-      <p class="lead">Explore a sample inbox and watch the assistant summarise emails, set priorities, extract tasks, draft replies, log everything to a tracker and generate a daily briefing.</p>
+      <p class="lead">Paste in an email and watch the assistant summarise it, set a priority, extract tasks and deadlines, draft a reply for your approval, and build your task list, calendar and daily briefing.</p>
       <a class="btn btn--primary" href="app/" data-demo>{ic("play")} Open the live demo</a>
     </div>
     <div class="feature-panel reveal">

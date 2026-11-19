@@ -5,9 +5,7 @@
    "EA - Website demo: live AI email analysis" scenario
    (Custom webhook → Make AI "Ask" → Webhook response).
    It is used ONLY on the "Analyse an email" page, when the
-   visitor chooses "Live AI". The sample inbox always uses the
-   in-browser demonstration engine, so visitors browsing the
-   demo do not spend your Make credits.
+   visitor chooses "Live AI" — each run uses your Make credits.
 
    - Leave aiEndpoint "" to switch live AI off completely.
    - aiDailyLimit caps live analyses per visitor per day.
@@ -20,8 +18,6 @@ window.APP_CONFIG = {
   aiEndpointLabel: "Live AI via Make.com",
   aiDailyLimit: 8,
   aiTimeoutSeconds: 60,
-  liveArrivalSeconds: [40, 75],   // live mode: a new sample email every 40–75 s
-  liveArrivalMax: 10,             // per visit
   websiteUrl: "../index.html",
   contactUrl: "../contact.html#consultation"
 };

@@ -107,7 +107,6 @@ Both forms include validation, a spam honeypot, a consent checkbox and a redirec
 - Header, footer, page titles/descriptions or structured data across all pages: edit `build.py` and run `python3 build.py`.
   *(Running `build.py` regenerates the HTML files, so if you use it, make your text edits in `build.py` rather than the HTML files.)*
 - Colours and fonts: the variables at the top of `assets/css/styles.css`.
-- Demo data (emails, events, follow-ups, examples): `app/data.js`.
 
 ## 7. The AI Executive Assistant demo app (`app/`)
 
@@ -115,19 +114,19 @@ A standalone, SaaS-style demo you can share with clients: `https://YOUR-SITE/app
 
 | Section | What visitors can do |
 |---|---|
-| Overview | KPIs (emails processed, important emails, pending tasks, deadlines, follow-ups, tasks completed), what needs attention, recent activity, category and priority charts, today's schedule |
+| Overview | KPIs (emails processed, important emails, pending tasks, deadlines, follow-ups, tasks completed), what needs attention, recent activity, category and priority charts, today's schedule. The workspace starts empty and fills as visitors add emails |
 | Smart Inbox | Filters (All, Urgent, Important, Requires response, Meetings, General information), search, per-email summary and recommended action |
 | Email analysis | Summary, intent + confidence, priority with reasons (and manual override), extracted people/organisations/amounts/references/dates/locations, deadlines, recommended action, tasks, calendar suggestion with clash detection, suggested reply in three tones — approve & send (simulated) |
 | Analyse an email | Write or paste a fictional email (or pick an example), watch the pipeline run, view the structured JSON output, add it to the inbox |
 | Tasks, Follow-ups, Calendar, Daily briefing, Settings | Complete/add/delete tasks, draft and send follow-ups, accept/dismiss meeting suggestions, add events, copy the briefing, set VIP senders, urgent keywords and default tone |
 
-Files: `app/index.html`, `app/app.css`, `app/app.js` (interface), `app/engine.js` (analysis), `app/data.js` (fictional data), `app/config.js` (settings).
+Files: `app/index.html`, `app/app.css`, `app/app.js` (interface), `app/engine.js` (analysis), `app/config.js` (settings). There is no sample data: every visitor starts with an empty inbox, tasks, calendar and follow-ups.
 
-**Demonstration engine.** By default analysis is done by a transparent, rule-based engine in the visitor's browser and the interface labels it clearly — no AI service is called and nothing leaves the page. Each visitor's changes are saved in their own browser; *Settings → Reset demo data* restores the original.
+**Demonstration engine.** By default analysis is done by a transparent, rule-based engine in the visitor's browser and the interface labels it clearly — no AI service is called and nothing leaves the page. Each visitor's data is saved in their own browser only; *Settings → Clear all data* empties it.
 
-**Interactive extras.** A guided tour starts on a visitor's first visit (replay it from the **?** button or the sidebar). Live mode delivers a new sample email every 40–75 seconds, and the bell collects notifications. You can edit the summary, extracted details and deadlines, and switch tasks between list and board views. Board cards and calendar events can be dragged. On touch screens, use the status menu or click an event to edit it. Draft replies "type" themselves when you change tone or regenerate.
+**Interactive extras.** A guided tour starts on a visitor's first visit (replay it from the **?** button or the sidebar). The bell collects due-task and follow-up notifications. You can edit the summary, extracted details and deadlines, and switch tasks between list and board views. Board cards and calendar events can be dragged. On touch screens, use the status menu or click an event to edit it. Draft replies "type" themselves when you change tone or regenerate.
 
-**Live AI (Make.com).** The *Analyse an email* page has a **Live AI / Demo engine** switch. Live AI sends the email (form-encoded, no API keys involved) to the Make webhook set in `app/config.js` → `aiEndpoint`. That runs the Make scenario **"EA - Website demo: live AI email analysis"** (Custom webhook → Make AI "Ask" → Webhook response). The scenario returns JSON, and the app validates every field before showing it. Each visitor gets `aiDailyLimit` (default 8) live analyses per day. The sample inbox never calls the AI, so browsing the demo costs nothing. If the scenario is off or slow (`aiTimeoutSeconds`), the app shows the demonstration engine and says so.
+**Live AI (Make.com).** The *Analyse an email* page has a **Live AI / Demo engine** switch. Live AI sends the email (form-encoded, no API keys involved) to the Make webhook set in `app/config.js` → `aiEndpoint`. That runs the Make scenario **"EA - Website demo: live AI email analysis"** (Custom webhook → Make AI "Ask" → Webhook response). The scenario returns JSON, and the app validates every field before showing it. Each visitor gets `aiDailyLimit` (default 8) live analyses per day. If the scenario is off or slow (`aiTimeoutSeconds`), the app shows the demonstration engine and says so.
 
 - The scenario must be **active** in Make to answer. Each live analysis uses a few Make operations plus AI credits from Make's AI provider.
 - The webhook only sends its response to `https://yomie-commits.github.io`. If you move the site to another domain, update the `Access-Control-Allow-Origin` header in the scenario's Webhook response module.

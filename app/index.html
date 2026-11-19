@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 <a class="skip" href="#view">Skip to content</a>
@@ -49,22 +49,18 @@
         <label class="sr-only" for="global-q">Search emails</label>
         <input id="global-q" type="search" placeholder="Search emails  ( / )" autocomplete="off">
       </div>
-      <button class="btn btn--sm live-btn" id="live-btn" type="button" data-act="live" aria-pressed="true"><span class="live-dot" aria-hidden="true"></span><span id="live-label">Live</span></button>
       <div class="bell-wrap">
         <button class="icon-btn bell-btn" id="bell-btn" type="button" data-act="bell" aria-haspopup="true" aria-expanded="false" aria-controls="bell-panel" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bell-n" id="bell-n" hidden>0</span></button>
         <div class="bell-panel" id="bell-panel" hidden></div>
       </div>
       <button class="icon-btn" id="tour-btn" type="button" data-act="tour" aria-label="Take the guided tour" title="Take the guided tour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg></button>
-      <button class="btn btn--sm" id="btn-sim" type="button" title="Simulate a new incoming email">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>New email</span>
-      </button>
       <a class="btn btn--primary btn--sm" href="#analyze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg><span>Analyse</span></a>
       <span class="avatar" id="avatar" aria-hidden="true">NM</span>
     </header>
 
     <div class="demo-note" id="demo-note" role="note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      <span><b>Interactive demonstration.</b> All emails, people and companies are fictional. Analysis is performed by a clearly labelled demonstration engine in your browser — no real inbox is connected and nothing is sent.</span>
+      <span><b>Try the AI Executive Assistant.</b> Your inbox starts empty — go to <a href="#analyze">Analyse an email</a>, write or paste an email (please don't use real confidential messages), and add the result to your Smart Inbox. Nothing is sent from this page.</span>
       <button class="note-close" id="note-close" type="button" aria-controls="demo-note" aria-label="Dismiss demo notice" title="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg><span>Dismiss</span></button>
     </div>
 
@@ -74,9 +70,8 @@
 <div class="modal" id="modal" hidden></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:2rem;text-align:center">This interactive demo needs JavaScript enabled.</p></noscript>
-<script src="config.js?v=4"></script>
-<script src="data.js?v=4"></script>
-<script src="engine.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="config.js?v=6"></script>
+<script src="engine.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

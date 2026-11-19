@@ -492,3 +492,8 @@ body.touring .toasts { display: none; }
 .toast .t-close:hover { background: rgba(255, 255, 255, .12); color: #fff; }
 .toast .t-close svg { width: 14px; height: 14px; color: inherit; margin: 0; }
 .toast.is-leaving { opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease; }
+.empty.start { padding: 2.2rem 1.2rem; }
+.empty.start svg { color: var(--purple); width: 40px; height: 40px; }
+.empty.start p { max-width: 420px; margin: 0 auto 1rem; }
+.demo-note a { font-weight: 600; }
+.empty .btn svg { width: 16px; height: 16px; margin: 0; color: inherit; }

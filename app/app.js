@@ -5,7 +5,7 @@
   "use strict";
   var E = window.DemoEngine, CFG = window.APP_CONFIG || {};
   var esc = E.esc, fmt = E.fmt, fmtTime = E.fmtTime, rel = E.rel, iso = E.iso;
-  var KEY = "eaDemoApp.v1";
+  var KEY = "eaDemoApp.v2";
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
@@ -55,42 +55,17 @@
   var S, ui = { useLive: true, editing: null, taskView: "list", notifOpen: false, view: "overview", filter: "all", selected: null, query: "", taskTab: "open", weekOffset: 0, analyzeResult: null, analyzeInput: null };
   var uid = function () { return Math.random().toString(36).slice(2, 9); };
   var DEFAULT_SETTINGS = { yourName: "Naomi Mwangi", businessName: "AI Automation Services", tone: "Formal",
-    vipSenders: "Horizon Ventures, Bloom Interiors", urgentKeywords: "urgent, asap, immediately, deadline, overdue, critical, final reminder", autoProcess: true };
+    vipSenders: "", urgentKeywords: "urgent, asap, immediately, deadline, overdue, critical, final reminder", autoProcess: true };
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ } }
   function load() {
-    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (d && d.v === 1) { d.notifications = d.notifications || []; d.notified = d.notified || {}; if (typeof d.liveMode !== "boolean") d.liveMode = true; return d; } } } catch (e) { /* ignore */ }
+    try { localStorage.removeItem("eaDemoApp.v1"); } catch (e) { /* old sample data */ }
+    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (d && d.v === 1) { d.notifications = d.notifications || []; d.notified = d.notified || {}; return d; } } } catch (e) { /* ignore */ }
     return null;
   }
 
   function seed() {
-    var now = Date.now();
-    S = { v: 1, settings: Object.assign({}, DEFAULT_SETTINGS), emails: [], tasks: [], events: [], followups: [], activity: [], notifications: [], notified: {}, liveMode: true, incomingIdx: 0, created: now };
-    window.DEMO_EMAILS.forEach(function (d, i) {
-      var em = { id: "e" + (i + 1), from: d.from, email: d.email, org: d.org, subject: d.subject, body: d.body, ts: now - d.ago * 60000, read: d.ago > 1000, status: "new", draft: null, tone: null };
-      em.analysis = E.analyze(em, S.settings);
-      if (em.analysis.category === "General information" || em.analysis.intentId === "receipt") em.read = true;
-      S.emails.push(em);
-      addTasksFrom(em, true);
-      if (em.analysis.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, em.analysis.event));
-    });
-    var today = E.addDays(new Date(), 0);
-    window.DEMO_EVENTS.forEach(function (ev) { S.events.push({ id: uid(), title: ev.title, date: iso(ev.day === 0 ? today : E.bizDays(today, ev.day)), time: ev.time, kind: ev.kind, status: "confirmed" }); });
-    window.DEMO_FOLLOWUPS.forEach(function (f) { S.followups.push({ id: uid(), contact: f.contact, org: f.org, topic: f.topic, sentTs: now - f.sentAgo * 864e5, due: iso(E.addDays(today, f.due)), status: "waiting" }); });
-    window.DEMO_DONE_TASKS.forEach(function (t) { S.tasks.push({ id: uid(), text: t.text, due: iso(E.addDays(today, -t.daysAgo)), done: true, doneTs: now - t.daysAgo * 864e5 - 3600e3, priority: "Normal", createdTs: now - (t.daysAgo + 2) * 864e5 }); });
-    S.activity = [];
-    log("sent", "Reply approved and sent to Bloom Interiors — onboarding guide", now - 26 * 3600e3);
-    log("task", "Task completed: Test reminder workflow for Kariuki Dental", now - 20 * 3600e3);
-    log("process", "Morning run: 7 new emails analysed and logged", now - 9 * 3600e3);
-    log("calendar", "Meeting confirmed: Weekly pipeline review", now - 6 * 3600e3);
-    log("process", "Analysed: “" + S.emails[2].subject + "” → " + S.emails[2].analysis.priority, now - 94 * 60000);
-    log("process", "Analysed: “" + S.emails[1].subject + "” → " + S.emails[1].analysis.priority, now - 51 * 60000);
-    log("alert", "Urgent email flagged from Peter Kariuki (Kariuki Dental Clinic)", now - 17 * 60000);
-    S.notifications = [
-      { id: uid(), ts: now - 17 * 60000, text: "Urgent email from Peter Kariuki — appointment reminders stopped", view: "inbox", emailId: "e1", kind: "alert", read: false },
-      { id: uid(), ts: now - 51 * 60000, text: "Wanjiru Kamau needs a revised quote before tomorrow 10am", view: "inbox", emailId: "e2", kind: "mail", read: false },
-      { id: uid(), ts: now - 3 * 3600e3, text: "Follow-up overdue: Joseph Odhiambo — signed service agreement", view: "followups", kind: "followup", read: true }
-    ];
+    S = { v: 1, settings: Object.assign({}, DEFAULT_SETTINGS), emails: [], tasks: [], events: [], followups: [], activity: [], notifications: [], notified: {}, created: Date.now() };
     save();
   }
 
@@ -243,7 +218,7 @@
     }).join("");
     $("#engine-name").textContent = engineLabel();
     $("#engine-dot").className = "dot" + (liveAvailable() ? " dot--live" : "");
-    $("#engine-desc").textContent = liveAvailable() ? "The sample inbox uses a rule-based demonstration engine in your browser. “Analyse an email” can also call a live AI model through Make.com." : "Rule-based analysis running in your browser. No AI service is called and no data leaves this page.";
+    $("#engine-desc").textContent = liveAvailable() ? "Emails you paste on “Analyse an email” can be read by a live AI model through Make.com, or by the instant rule-based engine in your browser." : "Rule-based analysis running in your browser. No AI service is called and no data leaves this page.";
     $("#avatar").textContent = initials(S.settings.yourName || "You");
   }
   function render() {
@@ -286,10 +261,10 @@
       .sort(function (a, b) { return PRANK[a.analysis.priority] - PRANK[b.analysis.priority] || b.ts - a.ts; }).slice(0, 5);
     var attHtml = attention.length ? '<ul class="list">' + attention.map(function (e) {
       return '<li><button class="row row--btn" data-act="open" data-id="' + e.id + '"><span class="pdot ' + e.analysis.priority.toLowerCase() + '"></span><span class="row__main"><span class="row__title">' + esc(e.subject) + '</span><span class="row__sub">' + esc(e.from) + " · " + esc(e.analysis.action) + '</span></span>' + pBadge(e.analysis.priority) + "</button></li>";
-    }).join("") + "</ul>" : empty("check", "You're all caught up.");
+    }).join("") + "</ul>" : (S.emails.length ? empty("check", "You're all caught up.") : startHtml());
 
     var actIc = { process: ["spark", "tone-purple"], task: ["check", "tone-green"], sent: ["send", "tone-blue"], calendar: ["cal", "tone-amber"], alert: ["alert", "tone-red"], followup: ["repeat", "tone-navy"], new: ["mail", "tone-blue"], settings: ["cog", "tone-navy"] };
-    var actHtml = '<ul class="list activity">' + S.activity.slice(0, 7).map(function (a) {
+    var actHtml = !S.activity.length ? empty("bolt", "Activity will appear here as you use the assistant.") : '<ul class="list activity">' + S.activity.slice(0, 7).map(function (a) {
       var x = actIc[a.type] || actIc.process;
       return '<li><span class="a-ico ' + x[1] + '">' + ic(x[0]) + '</span><span>' + esc(a.text) + '<time datetime="' + new Date(a.ts).toISOString() + '">' + ago(a.ts) + "</time></span></li>";
     }).join("") + "</ul>";
@@ -300,7 +275,7 @@
 
     var cats = {}; p.forEach(function (e) { cats[e.analysis.category] = (cats[e.analysis.category] || 0) + 1; });
     var maxC = Math.max.apply(null, Object.keys(cats).map(function (k) { return cats[k]; }).concat([1]));
-    var barHtml = '<div class="bars">' + Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).map(function (k) {
+    var barHtml = !p.length ? '<p class="muted small">Categories appear once emails are analysed.</p>' : '<div class="bars">' + Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).map(function (k) {
       return '<div class="bar"><span>' + esc(k) + '</span><span class="bar__track"><span class="bar__fill" style="width:' + Math.round(cats[k] / maxC * 100) + '%"></span></span><b>' + cats[k] + "</b></div>";
     }).join("") + "</div>";
     var pr = { Urgent: 0, Important: 0, Normal: 0, Low: 0 }; p.forEach(function (e) { pr[e.analysis.priority]++; });
@@ -313,7 +288,7 @@
     var sugg = S.events.filter(function (e) { return e.status === "suggested"; }).length;
 
     return '<div class="page-head fade-in"><div><h2 style="font-size:1.45rem">' + greet + ", " + esc(name) + '</h2><p>' + esc(longDate()) + " · Here's what your assistant has prepared.</p></div>" +
-      '<div class="btn-row"><button class="btn" data-act="simulate">' + ic("mail") + ' Simulate new email</button><a class="btn btn--primary" href="#briefing">' + ic("sun") + " Open daily briefing</a></div></div>" +
+      '<div class="btn-row"><a class="btn" href="#briefing">' + ic("sun") + ' Daily briefing</a><a class="btn btn--primary" href="#analyze">' + ic("spark") + " Analyse an email</a></div></div>" +
       '<div class="kpis fade-in">' + kHtml + "</div>" +
       '<div class="ov-grid fade-in"><section class="card" id="attention"><div class="card__head"><h2>' + ic("flag") + 'Needs your attention</h2><a class="btn btn--ghost btn--sm" href="#inbox">Open inbox ' + ic("arrow") + "</a></div>" + attHtml + "</section>" +
       '<section class="card"><div class="card__head"><h2>' + ic("bolt") + "Recent activity</h2></div>" + actHtml + "</section></div>" +
@@ -326,6 +301,9 @@
     if (!due) return '<span class="muted">No date</span>';
     var d = E.daysFrom(due), cls = d < 0 ? "overdue" : d === 0 ? "today" : "";
     return '<span class="due ' + cls + '">' + (d < 0 ? "Overdue · " : "") + fmt(due) + "</span>";
+  }
+  function startHtml() {
+    return '<div class="empty start">' + ic("spark") + '<p><b style="color:var(--ink)">Your inbox is empty.</b><br>Paste or write an email and the assistant will summarise it, set a priority, pull out tasks and deadlines, and draft a reply.</p><a class="btn btn--primary" href="#analyze">' + ic("spark") + " Analyse your first email</a></div>";
   }
   function empty(icon, text) { return '<div class="empty">' + ic(icon) + "<p class=\"mb-0\">" + esc(text) + "</p></div>"; }
   function evSort(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.time || "") < (b.time || "") ? -1 : 1; }
@@ -344,13 +322,13 @@
     var chips = FILTERS.filter(function (f) { return !f.hideIfEmpty || active().filter(f.test).length; }).map(function (f) {
       return '<button class="chip" data-act="filter" data-f="' + f.id + '" aria-pressed="' + (ui.filter === f.id) + '">' + f.label + ' <span class="n">' + active().filter(f.test).length + "</span></button>";
     }).join("");
-    var items = list.length ? list.map(mailItem).join("") : empty("inbox", ui.query ? "No emails match “" + ui.query + "”." : "No emails in this view.");
+    var items = list.length ? list.map(mailItem).join("") : (!active().length && !ui.query ? startHtml() : empty("inbox", ui.query ? "No emails match “" + ui.query + "”." : "No emails in this view."));
     var sel = ui.selected && email(ui.selected);
     var mobileSearch = '<div class="field" style="margin-bottom:.6rem"><label class="sr-only" for="inbox-q">Search emails</label><input id="inbox-q" type="search" placeholder="Search sender, subject or content…" value="' + esc(ui.query) + '"></div>';
     return '<div class="inbox-layout' + (sel ? " has-detail" : "") + '">' +
       '<section class="inbox-list"><div class="chips" role="toolbar" aria-label="Inbox filters">' + chips + "</div>" + mobileSearch +
       '<div class="card"><div class="card__head" style="padding-bottom:.6rem"><h2>' + ic("inbox") + esc((FILTERS.filter(function (f) { return f.id === ui.filter; })[0] || FILTERS[0]).label) + '</h2><span class="small muted">' + list.length + " email" + (list.length === 1 ? "" : "s") + '</span></div><div class="mail-list"><ul class="list" aria-label="Emails">' + items + "</ul></div></div></section>" +
-      '<section class="detail" aria-live="polite">' + (sel ? detailHtml(sel) : '<div class="card">' + empty("mail", "Select an email to see the assistant's analysis.") + "</div>") + "</section></div>";
+      '<section class="detail" aria-live="polite">' + (sel ? detailHtml(sel) : '<div class="card">' + empty("mail", active().length ? "Select an email to see the assistant's analysis." : "Analysed emails you add will appear here with their full analysis.") + "</div>") + "</section></div>";
   }
   function mailItem(e) {
     var a = e.analysis;
@@ -455,12 +433,10 @@
   /* ---------------- Analyse page ---------------- */
   function vAnalyze() {
     var inp = ui.analyzeInput || { from: "", email: "", subject: "", body: "" };
-    var ex = window.DEMO_EXAMPLES.map(function (x, i) { return '<button class="chip" data-act="example" data-i="' + i + '">' + esc(x.label) + "</button>"; }).join("");
     var steps = ["Receive", "Classify", "Extract", "Prioritise", "Draft reply"].map(function (s, i) { return '<span class="step" data-step="' + i + '">' + ic(["mail", "tag", "list", "flag", "pen"][i]) + s + "</span>"; }).join('<span class="step-sep" aria-hidden="true">→</span>');
     var res = ui.analyzeResult;
     return '<div class="analyze-layout">' +
       '<section class="card"><div class="card__head"><h2>' + ic("mail") + 'Your email</h2></div><div class="card__body"><form class="form" id="analyze-form" novalidate>' +
-      '<div><span class="small muted" style="display:block;margin-bottom:.35rem">Start from an example:</span><div class="examples">' + ex + "</div></div>" +
       '<div class="field-row"><div class="field"><label for="a-from">Sender name</label><input id="a-from" name="from" maxlength="60" placeholder="e.g. Jane Wairimu" value="' + esc(inp.from) + '"></div>' +
       '<div class="field"><label for="a-email">Sender email</label><input id="a-email" name="email" type="email" maxlength="80" placeholder="jane@example.com" value="' + esc(inp.email) + '"></div></div>' +
       '<div class="field"><label for="a-subject">Subject</label><input id="a-subject" name="subject" maxlength="140" placeholder="e.g. Proposal needed by Friday" value="' + esc(inp.subject) + '"></div>' +
@@ -470,7 +446,7 @@
       '<p class="hint mb-0">' + ic("info").replace("<svg", '<svg style="display:inline;width:13px;height:13px;vertical-align:-2px"') + " Use fictional content only. " + (liveAvailable() && ui.useLive ? "With Live AI, the text is sent to Make.com and an AI model to be analysed, then returned here. It is not stored on this website." : "The demonstration engine runs in your browser — nothing is sent anywhere.") + "</p>" +
       "</form></div></section>" +
       '<section class="card" id="analyze-out"><div class="card__head"><h2>' + ic("spark") + 'Assistant analysis</h2><span id="analyze-engine">' + (res ? engineBadge(res.a) : '<span class="badge b-purple">' + esc(engineLabel()) + "</span>") + '</span></div><div class="card__body" style="padding-bottom:.4rem"><div class="pipeline" id="pipeline">' + steps + "</div></div>" +
-      '<div id="analyze-result">' + (res ? analyzeResultHtml(res) : '<div class="card__body">' + empty("spark", "Choose an example or write your own email, then click “Run analysis”.") + "</div>") + "</div></section></div>";
+      '<div id="analyze-result">' + (res ? analyzeResultHtml(res) : '<div class="card__body">' + empty("spark", "Write or paste an email, then click “Run analysis”. Add the result to your Smart Inbox to track its tasks, deadlines and reply.") + "</div>") + "</div></section></div>";
   }
   function currentAnalyzeInput() {
     var f = $("#analyze-form"); if (!f) return ui.analyzeInput;
@@ -670,14 +646,13 @@
       (CFG.aiEndpoint ? "Emails are analysed by your connected endpoint (" + esc(CFG.aiEndpointLabel || "") + "). If it is unreachable, the demonstration engine is used and clearly labelled." :
         "This demo uses a <b>rule-based demonstration engine</b> that runs in your browser. It detects intent, priority, dates, amounts and action items with transparent rules, so it works on any website without exposing an AI key. It is not a large language model and will be less accurate on unusual emails.") +
       '</p><p class="mb-0">In a client deployment, the same steps run in <b>Make.com</b>: Gmail triggers the scenario, an AI model returns this same structured output, and results go to Google Sheets and Google Calendar — with replies always waiting for human approval.</p></div></section>' +
-      '<section class="card"><div class="card__head"><h2>' + ic("refresh") + 'Demo data</h2></div><div class="card__body"><p>All emails, people and companies are fictional. Your changes are saved in this browser only.</p><div class="btn-row"><button class="btn" data-act="show-note"' + ($("#demo-note") && !$("#demo-note").hidden ? " disabled" : "") + ">" + ic("info") + " Show the demo notice" + '</button><button class="btn" data-act="tour">' + ic("help") + ' Replay the tour</button><button class="btn btn--danger" data-act="reset">' + ic("trash") + " Reset demo data</button></div></div></section></div>";
+      '<section class="card"><div class="card__head"><h2>' + ic("refresh") + 'Your data</h2></div><div class="card__body"><p>Everything you add is saved in this browser only and is never uploaded to this website.</p><div class="btn-row"><button class="btn" data-act="show-note"' + ($("#demo-note") && !$("#demo-note").hidden ? " disabled" : "") + ">" + ic("info") + " Show the demo notice" + '</button><button class="btn" data-act="tour">' + ic("help") + ' Replay the tour</button><button class="btn btn--danger" data-act="reset">' + ic("trash") + " Clear all data</button></div></div></section></div>";
   }
 
   /* ---------------- After render: bind non-delegated bits ---------------- */
   function afterRender() {
     bindDnD();
     $$("select[data-task-status]").forEach(function (sel) { sel.addEventListener("change", function () { setTaskStatus(sel.getAttribute("data-task-status"), sel.value); }); });
-    var lb = $("#live-btn"); if (lb) updateLiveBtn();
     var af = $("#analyze-form"); if (af) af.addEventListener("submit", function (e) { e.preventDefault(); runAnalyzePage(af); });
     var tf = $("#add-task"); if (tf) tf.addEventListener("submit", function (e) {
       e.preventDefault(); var t = $("#t-text").value.trim(); if (!t) { $("#t-text").focus(); return; }
@@ -711,7 +686,6 @@
       case "open": ev.preventDefault(); openEmail(id); break;
       case "close-detail": ui.selected = null; render(); break;
       case "filter": ui.filter = el.getAttribute("data-f"); ui.selected = null; render(); break;
-      case "simulate": simulate(); break;
       case "process": case "reanalyse": processEmail(em, act === "reanalyse"); break;
       case "archive": em.status = "archived"; log("process", "Archived: “" + trunc(em.subject, 50) + "”"); ui.selected = null; save(); render(); toast("Email archived", "Undo", function () { em.status = "new"; save(); render(); }); break;
       case "mark-read": em.read = true; save(); render(); toast("Marked as read"); break;
@@ -729,7 +703,6 @@
       case "copy-draft": copy(($("#draft-" + id) || {}).value || "", "Draft copied"); break;
       case "approve": approve(em); break;
       case "override": break;
-      case "example": var x = window.DEMO_EXAMPLES[+el.getAttribute("data-i")]; ui.analyzeInput = { from: x.from, email: x.email, subject: x.subject, body: x.body }; ui.analyzeResult = null; render(); $("#a-body").focus(); break;
       case "engine": ui.useLive = el.getAttribute("data-engine") === "live"; ui.analyzeInput = currentAnalyzeInput(); render(); break;
       case "clear-analyze": ui.analyzeInput = null; ui.analyzeResult = null; render(); break;
       case "add-to-inbox": addAnalyzedToInbox(); break;
@@ -755,7 +728,7 @@
         break;
       case "copy-brief": copy(briefText(), "Briefing copied"); break;
       case "regen-brief": log("process", "Daily briefing regenerated"); save(); render(); toast("Briefing refreshed"); break;
-      case "reset": confirmModal("Reset demo data?", "This restores the original fictional inbox, tasks and calendar. Your changes in this browser will be lost.", "Reset", function () { try { localStorage.removeItem(KEY); } catch (e) { /* */ } seed(); ui.selected = null; ui.analyzeResult = null; render(); toast("Demo data reset"); }); break;
+      case "reset": confirmModal("Clear all data?", "This removes every email, task, event and follow-up saved in this browser and starts again with an empty workspace.", "Clear everything", function () { try { localStorage.removeItem(KEY); } catch (e) { /* */ } seed(); ui.selected = null; ui.analyzeResult = null; render(); toast("Workspace cleared"); }); break;
       case "close-modal": closeModal(); break;
       case "bell": ev.stopPropagation(); toggleBell(); break;
       case "notif-readall": S.notifications.forEach(function (n) { n.read = true; }); save(); renderBell(); break;
@@ -764,10 +737,9 @@
         nt.read = true; save(); toggleBell(false); renderBell();
         if (nt.emailId && email(nt.emailId)) openEmail(nt.emailId); else go(nt.view || "overview");
         break;
-      case "live": S.liveMode = !S.liveMode; save(); if (S.liveMode) { live.count = Math.min(live.count, (CFG.liveArrivalMax || 10) - 1); scheduleLive(true); toast("Live mode on — new emails will arrive automatically"); } else { clearTimeout(live.timer); updateLiveBtn(); toast("Live mode paused"); } break;
       case "tour": startTour(); break;
-      case "tour-next": tour.i++; if (tour.i >= TOUR.length) endTour(true); else showStep(); break;
-      case "tour-prev": tour.i = Math.max(0, tour.i - 1); showStep(); break;
+      case "tour-next": tour.dir = 1; tour.i++; if (tour.i >= TOUR.length) endTour(true); else showStep(); break;
+      case "tour-prev": tour.dir = -1; tour.i = Math.max(0, tour.i - 1); showStep(); break;
       case "tour-skip": endTour(false); break;
       case "task-view": ui.taskView = el.getAttribute("data-v"); render(); break;
       case "edit": ui.editing = { id: id, block: el.getAttribute("data-block") }; render(); var f0 = $(".analysis textarea#ed-summary, .analysis input"); if (f0) f0.focus(); break;
@@ -871,21 +843,6 @@
       save(); render();
       return a;
     });
-  }
-  function simulate(auto) {
-    var pool = window.DEMO_INCOMING, src = pool[S.incomingIdx % pool.length]; S.incomingIdx++;
-    var em = { id: "n" + uid(), from: src.from, email: src.email, org: src.org, subject: src.subject, body: src.body, ts: Date.now(), read: false, status: "new", draft: null, tone: null, analysis: null };
-    S.emails.push(em); log("new", "New email from " + em.from + ": “" + trunc(em.subject, 50) + "”"); save();
-    if (S.settings.autoProcess) {
-      render(); toast("New email from " + em.from + " — analysing…"); flashInbox();
-      setTimeout(function () { runAnalysis(em).then(function (a) {
-        em.analysis = a; addTasksFrom(em, true);
-        if (a.event) S.events.push(Object.assign({ id: uid(), status: "suggested", emailId: em.id }, a.event));
-        log(a.priority === "Urgent" ? "alert" : "process", "Analysed: “" + trunc(em.subject, 50) + "” → " + a.priority + " · " + a.category);
-        save(); render(); toast((auto ? "New email · " : "") + a.priority + " · " + a.category + ": " + trunc(em.subject, 50), "Open", function () { openEmail(em.id); });
-        notify((a.priority === "Urgent" || a.priority === "Important" ? a.priority + " email" : "New email") + " from " + em.from + ": " + trunc(em.subject, 60), "inbox", em.id, a.priority === "Urgent" ? "alert" : "mail");
-      }); }, reduced() ? 50 : 1100);
-    } else { render(); toast("New email from " + em.from + " (not analysed yet)", "Open", function () { openEmail(em.id); }); }
   }
   function addAnalyzedToInbox() {
     var r = ui.analyzeResult; if (!r) return;
@@ -997,29 +954,6 @@
     if (due) notify(due + " task" + (due > 1 ? "s are" : " is") + " due today", "tasks", null, "task");
   }
 
-  var live = { timer: null, count: 0, nextAt: 0, tick: null };
-  function scheduleLive(first) {
-    clearTimeout(live.timer);
-    if (!S.liveMode || live.count >= (CFG.liveArrivalMax || 10)) { updateLiveBtn(); return; }
-    var r = CFG.liveArrivalSeconds || [40, 75];
-    var sec = first ? 18 + Math.random() * 10 : r[0] + Math.random() * (r[1] - r[0]);
-    live.nextAt = Date.now() + sec * 1000;
-    live.timer = setTimeout(function () {
-      if (document.hidden || tour.i >= 0 || !$("#modal").hidden) { scheduleLive(); return; }
-      live.count++; simulate(true); scheduleLive();
-    }, sec * 1000);
-    updateLiveBtn();
-  }
-  function updateLiveBtn() {
-    var b = $("#live-btn"); if (!b) return;
-    var on = S.liveMode && live.count < (CFG.liveArrivalMax || 10);
-    b.setAttribute("aria-pressed", S.liveMode ? "true" : "false");
-    b.classList.toggle("is-live", !!S.liveMode);
-    var lbl = $("#live-label"); if (lbl) lbl.textContent = S.liveMode ? "Live" : "Paused";
-    var secs = Math.max(0, Math.round((live.nextAt - Date.now()) / 1000));
-    b.title = S.liveMode ? (on ? "Live mode on — next email in about " + secs + " s. Click to pause." : "Live mode on — sample emails for this visit have all arrived.") : "Live mode paused — click to receive new emails automatically.";
-  }
-
   var typing = null;
   function typeInto(ta, text) {
     finishTyping();
@@ -1072,18 +1006,14 @@
      GUIDED TOUR
      ========================================================= */
   var TOUR = [
-    { view: "overview", sel: ".kpis", title: "Your day at a glance", text: "Six live counters: emails processed, important emails, pending tasks, deadlines, follow-ups and completed tasks. Click any card to jump straight there." },
-    { view: "overview", sel: "#attention", title: "What needs your attention", text: "The assistant ranks emails by urgency and gives you one clear next step for each." },
-    { view: "inbox", sel: ".chips", title: "Smart Inbox filters", text: "Filter by Urgent, Important, Requires response, Meetings or General information — or search everything.", before: function () { ui.selected = null; ui.filter = "all"; ui.query = ""; } },
-    { view: "inbox", sel: ".mail-list .mail", title: "A summary on every email", text: "Each email shows an AI summary, its priority and category, and the recommended action. Click any email to open the full analysis." },
-    { view: "inbox", sel: ".analysis", title: "The full analysis", text: "Intent, priority with reasons, names, amounts and dates pulled out of the text, deadlines and tasks. Use the pencil icons to correct anything.", before: function () { var v = visibleEmails(); ui.selected = v.length ? v[0].id : null; } },
-    { view: "inbox", sel: ".ablock--action", title: "One recommended action", text: "The single best next step, with a button that does it — reply, add to calendar, create a task or archive." },
-    { view: "inbox", sel: "#draft-block", title: "Replies wait for your approval", text: "Switch the tone, regenerate, edit, then approve. Nothing is ever sent without a human decision." },
-    { view: "analyze", sel: "#analyze-form", title: "Try it with your own email", text: "Write or paste a fictional email, or pick an example. Choose “Live AI” to have a real AI model analyse it through Make.com.", before: function () { ui.selected = null; } },
-    { view: "tasks", sel: "#tasks-card", title: "Tasks & deadlines", text: "Every action item lands here automatically. Switch to Board view and drag tasks between To do, In progress and Done." },
-    { view: "calendar", sel: ".week", title: "Calendar suggestions", text: "Meetings found in email appear dashed — accept or dismiss them. Drag any event to another day, or click it to edit." },
-    { view: "briefing", sel: ".brief__hero", title: "Your daily briefing", text: "A ready-made summary of priorities, deadlines and meetings. Copy it in one click." },
-    { view: "briefing", sel: "#live-btn", title: "Live mode", text: "New emails arrive and get analysed on their own while live mode is on. The bell collects notifications. You're ready — explore freely!" }
+    { view: "overview", sel: ".kpis", title: "Your day at a glance", text: "Live counters for emails processed, important emails, pending tasks, deadlines, follow-ups and completed tasks. They fill up as you add emails." },
+    { view: "analyze", sel: "#analyze-form", title: "Start here", text: "Write or paste an email. Choose Live AI to have a real AI model analyse it through Make.com, or the instant in-browser engine." },
+    { view: "inbox", sel: ".chips", title: "Your Smart Inbox", text: "Analysed emails you add appear here with a summary, priority and recommended action. Filter by Urgent, Important, Requires response, Meetings or General information.", before: function () { ui.selected = null; ui.filter = "all"; ui.query = ""; } },
+    { view: "inbox", sel: ".analysis", optional: true, title: "The full analysis", text: "Intent, priority with reasons, extracted names, amounts and dates, deadlines, tasks and a suggested reply — all editable.", before: function () { var v = visibleEmails(); ui.selected = v.length ? v[0].id : null; } },
+    { view: "tasks", sel: "#tasks-card", title: "Tasks & deadlines", text: "Action items from your emails land here automatically. Switch to Board view and drag tasks between To do, In progress and Done.", before: function () { ui.selected = null; } },
+    { view: "calendar", sel: ".week", title: "Calendar", text: "Meetings found in email appear as suggestions to accept or dismiss. Drag events between days or click one to edit." },
+    { view: "briefing", sel: ".brief__hero", title: "Daily briefing", text: "A ready-made summary of priorities, deadlines and meetings, which you can copy in one click." },
+    { view: "briefing", sel: "#bell-btn", title: "Notifications", text: "Due tasks and follow-ups show up here. You're ready — analyse your first email!" }
   ];
   var tour = { i: -1 };
   function startTour() { closeMenu(); toggleBell(false); tour.i = 0; document.body.classList.add("touring"); showStep(); }
@@ -1097,6 +1027,7 @@
   function showStep() {
     var st = TOUR[tour.i]; if (!st) return endTour(true);
     if (st.before) st.before();
+    if (st.optional && !ui.selected) { tour.i += tour.dir || 1; if (tour.i < 0) tour.i = 0; return showStep(); }
     if (ui.view !== st.view) { ui.view = st.view; try { history.replaceState(null, "", "#" + st.view); } catch (e) { /* */ } }
     render();
     if (!$("#tour-block")) {
@@ -1136,22 +1067,20 @@
     document.addEventListener("change", function (e) { if (e.target.matches('input[type=checkbox][data-act="toggle-task"]')) { /* handled in click */ } });
     document.addEventListener("click", function (e) { if (ui.notifOpen && !e.target.closest("#bell-panel, #bell-btn")) toggleBell(false); });
     document.addEventListener("keydown", function (e) {
-      if (tour.i >= 0) { if (e.key === "Escape") endTour(false); if (e.key === "ArrowRight") { tour.i++; tour.i >= TOUR.length ? endTour(true) : showStep(); } if (e.key === "ArrowLeft" && tour.i > 0) { tour.i--; showStep(); } return; }
+      if (tour.i >= 0) { if (e.key === "Escape") endTour(false); if (e.key === "ArrowRight") { tour.dir = 1; tour.i++; tour.i >= TOUR.length ? endTour(true) : showStep(); } if (e.key === "ArrowLeft" && tour.i > 0) { tour.dir = -1; tour.i--; showStep(); } return; }
       if (e.key === "Escape") { if (!$("#modal").hidden) closeModal(); else if (ui.notifOpen) toggleBell(false); else closeMenu(); }
       if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { var s = $("#global-q"); if (s && s.offsetParent) { e.preventDefault(); s.focus(); } }
     });
     $("#modal").addEventListener("click", function (e) { if (e.target.id === "modal") closeModal(); });
     $("#scrim").addEventListener("click", closeMenu);
     $("#global-q").addEventListener("input", function (e) { ui.query = e.target.value; ui.selected = null; if (ui.view !== "inbox") go("inbox"); else render(); });
-    $("#btn-sim").addEventListener("click", function () { simulate(false); });
     $("#note-close").addEventListener("click", dismissNote);
     try { if (localStorage.getItem("eaNoteHidden")) $("#demo-note").hidden = true; } catch (e) { /* */ }
     if (CFG.websiteUrl) $("#back-site").href = CFG.websiteUrl;
     if (CFG.contactUrl) $("#cta-book").href = CFG.contactUrl;
     window.addEventListener("hashchange", onHash);
     onHash();
-    checkDueNotifications(); renderBell(); scheduleLive(true);
-    setInterval(updateLiveBtn, 5000);
+    checkDueNotifications(); renderBell();
     var noTour = /[?&]notour\b/.test(location.search);
     try { if (!noTour && !localStorage.getItem("eaTourDone")) setTimeout(function () { if (tour.i < 0 && $("#modal").hidden) startTour(); }, 900); } catch (e) { /* */ }
   }
