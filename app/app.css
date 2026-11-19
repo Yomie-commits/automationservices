@@ -466,3 +466,29 @@ textarea.draft.is-typing { border-color: var(--purple); box-shadow: 0 0 0 3px rg
 .tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .tour-dots span.on { background: var(--purple); width: 16px; border-radius: 99px; }
 body.touring .toasts { display: none; }
+
+/* ---------- Dismiss controls ---------- */
+[hidden] { display: none !important; }
+.note-close { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 36px; padding: .35rem .75rem; border-radius: 9px; border: 1px solid transparent; background: transparent; color: #4f4a72; font: 600 .8rem var(--font); cursor: pointer; flex: none; transition: background .15s, border-color .15s, color .15s, transform .1s; }
+.note-close svg { width: 15px; height: 15px; }
+.note-close:hover { background: #ece8fb; border-color: #d8cfef; color: var(--purple-2); }
+.note-close:active { transform: scale(.95); }
+.note-close:disabled { opacity: .6; cursor: default; }
+.demo-note { overflow: hidden; transition: opacity .25s ease, height .3s ease, margin .3s ease, padding .3s ease, border-width .3s ease; }
+.demo-note.is-leaving { opacity: 0; height: 0 !important; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+.demo-note.is-entering { animation: fade .35s ease; }
+@media (max-width: 640px) {
+  .demo-note { align-items: flex-start; padding-right: .4rem; }
+  .note-close span { display: none; }
+  .note-close { min-width: 40px; min-height: 40px; padding: 0; margin: -.35rem -.1rem 0 0; }
+  .note-close svg { width: 18px; height: 18px; }
+}
+.ev.is-leaving, .task.is-leaving, li.is-leaving { opacity: 0; transform: scale(.95); transition: opacity .2s ease, transform .2s ease; }
+.toast { align-items: center; }
+.toast .t-action { margin-left: auto; background: none; border: 0; color: #c9c2ff; font-weight: 700; cursor: pointer; padding: .3rem .4rem; border-radius: 6px; }
+.toast .t-action:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.toast .t-close { margin-left: .2rem; background: none; border: 0; color: #9aa6cc; cursor: pointer; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; padding: 0; }
+.toast span + .t-close { margin-left: auto; }
+.toast .t-close:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.toast .t-close svg { width: 14px; height: 14px; color: inherit; margin: 0; }
+.toast.is-leaving { opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease; }

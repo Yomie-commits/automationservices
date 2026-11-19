@@ -670,7 +670,7 @@
       (CFG.aiEndpoint ? "Emails are analysed by your connected endpoint (" + esc(CFG.aiEndpointLabel || "") + "). If it is unreachable, the demonstration engine is used and clearly labelled." :
         "This demo uses a <b>rule-based demonstration engine</b> that runs in your browser. It detects intent, priority, dates, amounts and action items with transparent rules, so it works on any website without exposing an AI key. It is not a large language model and will be less accurate on unusual emails.") +
       '</p><p class="mb-0">In a client deployment, the same steps run in <b>Make.com</b>: Gmail triggers the scenario, an AI model returns this same structured output, and results go to Google Sheets and Google Calendar — with replies always waiting for human approval.</p></div></section>' +
-      '<section class="card"><div class="card__head"><h2>' + ic("refresh") + 'Demo data</h2></div><div class="card__body"><p>All emails, people and companies are fictional. Your changes are saved in this browser only.</p><button class="btn btn--danger" data-act="reset">' + ic("trash") + " Reset demo data</button></div></section></div>";
+      '<section class="card"><div class="card__head"><h2>' + ic("refresh") + 'Demo data</h2></div><div class="card__body"><p>All emails, people and companies are fictional. Your changes are saved in this browser only.</p><div class="btn-row"><button class="btn" data-act="show-note"' + ($("#demo-note") && !$("#demo-note").hidden ? " disabled" : "") + ">" + ic("info") + " Show the demo notice" + '</button><button class="btn" data-act="tour">' + ic("help") + ' Replay the tour</button><button class="btn btn--danger" data-act="reset">' + ic("trash") + " Reset demo data</button></div></div></section></div>";
   }
 
   /* ---------------- After render: bind non-delegated bits ---------------- */
@@ -735,15 +735,24 @@
       case "add-to-inbox": addAnalyzedToInbox(); break;
       case "task-tab": ui.taskTab = el.getAttribute("data-tab"); render(); break;
       case "toggle-task": toggleTask(id, el.checked); break;
-      case "delete-task": S.tasks = S.tasks.filter(function (t) { return t.id !== id; }); save(); render(); toast("Task deleted"); break;
+      case "delete-task":
+        var gt = S.tasks.filter(function (t) { return t.id === id; })[0]; if (!gt) break;
+        animateOut(el.closest(".task"), function () { S.tasks = S.tasks.filter(function (t) { return t.id !== id; }); save(); render(); toast("Task deleted", "Undo", function () { S.tasks.push(gt); save(); render(); }); });
+        break;
+      case "show-note": showNote(); toast("Demo notice is visible again"); break;
       case "fu-draft": followupModal(id); break;
       case "fu-snooze": var f = fu(id); f.due = iso(E.addDays(new Date(), 2)); log("followup", "Follow-up with " + f.contact + " snoozed to " + fmt(f.due)); save(); render(); toast("Snoozed until " + fmt(f.due)); break;
       case "fu-done": var f2 = fu(id); f2.status = "done"; log("followup", f2.contact + " replied — follow-up resolved"); save(); render(); toast("Follow-up resolved"); break;
       case "week": var d = +el.getAttribute("data-d"); ui.weekOffset = d === 0 ? 0 : ui.weekOffset + d; render(); break;
       case "new-event": eventModal(); break;
       case "ev-accept": var e1 = evById(id); var c = findConflict(e1, e1.id); e1.status = "confirmed"; log("calendar", "Meeting added: " + e1.title); save(); render(); toast("Added to calendar" + (c ? " — note: clashes with “" + c.title + "”" : "")); break;
-      case "ev-dismiss": S.events = S.events.filter(function (x) { return x.id !== id; }); save(); render(); toast("Suggestion dismissed"); break;
-      case "ev-delete": S.events = S.events.filter(function (x) { return x.id !== id; }); save(); render(); toast("Event removed"); break;
+      case "ev-dismiss": case "ev-delete":
+        var gone = evById(id); if (!gone) break; el.disabled = true;
+        animateOut(el.closest(".ev, li"), function () {
+          S.events = S.events.filter(function (x) { return x.id !== id; }); save(); render();
+          toast(act === "ev-dismiss" ? "Suggestion dismissed" : "Event removed", "Undo", function () { S.events.push(gone); save(); render(); });
+        });
+        break;
       case "copy-brief": copy(briefText(), "Briefing copied"); break;
       case "regen-brief": log("process", "Daily briefing regenerated"); save(); render(); toast("Briefing refreshed"); break;
       case "reset": confirmModal("Reset demo data?", "This restores the original fictional inbox, tasks and calendar. Your changes in this browser will be lost.", "Reset", function () { try { localStorage.removeItem(KEY); } catch (e) { /* */ } seed(); ui.selected = null; ui.analyzeResult = null; render(); toast("Demo data reset"); }); break;
@@ -784,6 +793,28 @@
     log("process", "Analysis corrected by you: “" + trunc(em.subject, 50) + "”"); save(); render(); toast("Saved — your corrections are kept");
   }
   function flashInbox() { var n = $('#nav a[href="#inbox"]'); if (n) { n.classList.remove("ping"); void n.offsetWidth; n.classList.add("ping"); } }
+  function dismissNote() {
+    var n = $("#demo-note"); if (!n || n.hidden) return;
+    var btn = $("#note-close"); btn.disabled = true;
+    n.style.height = n.offsetHeight + "px"; void n.offsetHeight;
+    n.classList.add("is-leaving");
+    setTimeout(function () { n.hidden = true; n.classList.remove("is-leaving"); n.style.height = ""; btn.disabled = false; }, reduced() ? 0 : 300);
+    try { localStorage.setItem("eaNoteHidden", "1"); } catch (e) { /* */ }
+    var v = $("#view"); if (v) v.focus({ preventScroll: true });
+    toast("Demo notice hidden. You can bring it back in Settings.", "Undo", showNote);
+    if (ui.view === "settings") setTimeout(render, 320);
+  }
+  function showNote() {
+    var n = $("#demo-note"); if (!n) return;
+    n.hidden = false; n.classList.add("is-entering"); setTimeout(function () { n.classList.remove("is-entering"); }, 400);
+    try { localStorage.removeItem("eaNoteHidden"); } catch (e) { /* */ }
+    var b = $("#note-close"); if (b) b.focus({ preventScroll: true });
+    if (ui.view === "settings") render();
+  }
+  function animateOut(el, done) {
+    if (!el || reduced()) return done();
+    el.classList.add("is-leaving"); setTimeout(done, 220);
+  }
   function fu(id) { return S.followups.filter(function (f) { return f.id === id; })[0]; }
   function evById(id) { return S.events.filter(function (e) { return e.id === id; })[0]; }
   function openEmail(id) {
@@ -902,9 +933,15 @@
   /* ---------------- Toast & clipboard ---------------- */
   function toast(msg, actionLabel, onAction) {
     var box = $("#toasts"), t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
-    t.innerHTML = ic("check") + "<span>" + esc(msg) + "</span>" + (actionLabel ? "<button type=\"button\">" + esc(actionLabel) + "</button>" : "");
-    if (actionLabel) t.querySelector("button").addEventListener("click", function () { t.remove(); onAction(); });
-    box.appendChild(t); setTimeout(function () { t.remove(); }, actionLabel ? 6000 : 3600);
+    t.innerHTML = ic("check") + "<span>" + esc(msg) + "</span>" + (actionLabel ? '<button type="button" class="t-action">' + esc(actionLabel) + "</button>" : "") + '<button type="button" class="t-close" aria-label="Close notification">' + ic("x") + "</button>";
+    var timer, ms = actionLabel ? 6500 : 4000;
+    function close() { clearTimeout(timer); t.classList.add("is-leaving"); setTimeout(function () { t.remove(); }, reduced() ? 0 : 200); }
+    function arm() { clearTimeout(timer); timer = setTimeout(close, ms); }
+    if (actionLabel) t.querySelector(".t-action").addEventListener("click", function () { close(); onAction(); });
+    t.querySelector(".t-close").addEventListener("click", close);
+    t.addEventListener("mouseenter", function () { clearTimeout(timer); }); t.addEventListener("mouseleave", arm);
+    t.addEventListener("focusin", function () { clearTimeout(timer); }); t.addEventListener("focusout", arm);
+    box.appendChild(t); arm();
     while (box.children.length > 3) box.firstChild.remove();
   }
   function copy(text, ok) {
@@ -1107,8 +1144,8 @@
     $("#scrim").addEventListener("click", closeMenu);
     $("#global-q").addEventListener("input", function (e) { ui.query = e.target.value; ui.selected = null; if (ui.view !== "inbox") go("inbox"); else render(); });
     $("#btn-sim").addEventListener("click", function () { simulate(false); });
-    $("#note-close").addEventListener("click", function () { $("#demo-note").hidden = true; try { sessionStorage.setItem("eaNote", "1"); } catch (e) { /* */ } });
-    try { if (sessionStorage.getItem("eaNote")) $("#demo-note").hidden = true; } catch (e) { /* */ }
+    $("#note-close").addEventListener("click", dismissNote);
+    try { if (localStorage.getItem("eaNoteHidden")) $("#demo-note").hidden = true; } catch (e) { /* */ }
     if (CFG.websiteUrl) $("#back-site").href = CFG.websiteUrl;
     if (CFG.contactUrl) $("#cta-book").href = CFG.contactUrl;
     window.addEventListener("hashchange", onHash);
