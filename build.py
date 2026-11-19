@@ -15,7 +15,7 @@ assets/js/config.js and do not require a rebuild.
 import json, os, datetime
 
 # ------------------------------------------------------------------ SETTINGS
-SITE_URL = "https://yomie-commits.github.io/ai-automation-services"   # <-- your live domain, no trailing slash
+SITE_URL = "https://yomie-commits.github.io/automationservices"   # <-- your live domain, no trailing slash
 BRAND = "Naomi Mwangi"
 BRAND_TAG = "AI Automation Services"
 INITIALS = "NM"
